@@ -120,37 +120,36 @@ class AdvecDiff2D():
 if __name__ == '__main__':
     
     # USER INPUT
-    # data_folder = '/groups/astuart/nnelsen/data/raise/training/nu_inf_ell_p05/'
-    # data_folder = '/media/nnelsen/SharedNHN/documents/datasets/Sandia/raise/training/nu_inf_ell_p05/'
-    data_folder = '/media/nnelsen/SharedNHN/documents/datasets/Sandia/raise/training/nu_1p5_ell_p25/'
-    save_postfix = '_TESTvel_bigd/'   # '_scratch6k/'
-    d = 100
-    nu = 1.5                 # other values include 0.5, 1.5, 2.5, np.inf
-    ell = 0.25                  # other values: 0.05. 0.25     
-    n_train = 10
-    SAVE_AFTER = 20
-    K = 1 + 4096                # velocity 1D high resolution
+    data_suffix = 'nu_1p5_ell_p25/'     # 'nu_inf_ell_p05/'
+    save_suffix = '_TESTvel_bigd/'      # '_scratch6k/'
+    d = 1000                     # number of KLE coefficients; d<=1000 should work, but avoid d near K
+    nu = 1.5                    # values are 0.5, 1.5, 2.5, np.inf
+    ell = 0.25                  # other recommended values: 0.05. 0.25     
+    n_train = 10                # number of solves (training sample size)
+    SAVE_AFTER = 20             # save qoi every this many solves
+    K = 1 + 4096                # velocity 1D high resolution (one plus power of two)
+    K_sub = 16                  # subsample factor with respect to K (power of two)
     
+    # TODO: sys.argv
     # Process args
-    if nu > 2.5:
+    if nu > 2.5: # allow easy way to set nu = np.inf from command line
         nu = np.inf
-        
-    # Adjust resolution of velocity input to PDE solver
-    if nu == np.inf:
-        K_default = 101             # default velocity resolution to PDE solver
-        if d > K_default:
-            raise ValueError("d cannot be larger than K_default.\
-                             We recommend d<=20 if ell=0.25 and d<=50 if ell=0.05")
-    else: # nu = 0.5, 1.5, or 2.5 for Matern covariances
-        K_default = 1001
-        if d > K_default:
-            raise ValueError("d cannot be larger than K_default.\
-                             We recommend d<=1000 if ell=0.25.")
-    if K_default > K:
-        raise ValueError("must be <= K")
+    if not (nu in [0.5, 1.5, 2.5, np.inf]):
+        raise ValueError("nu must be in [0.5, 1.5, 2.5, np.inf]")
+
+    # Check dimensions
+    if not ((K-1 & (K-1-1) == 0) and K-1 != 0):
+        raise ValueError("K-1 must be power of two")
+    if not ((K_sub & (K_sub-1) == 0) and K_sub != 0):
+        raise ValueError("K_sub must be power of two")
+    if d > K:
+        raise ValueError("d cannot be larger than K, the velocity 1D high resolution. We recommend d << K.")
 
     # File IO
-    savepath = data_folder + str(d) + "d" + save_postfix
+    # data_prefix = '/groups/astuart/nnelsen/data/raise/training/'
+    data_prefix = '/media/nnelsen/SharedNHN/documents/datasets/Sandia/raise/training/'
+    data_folder = data_prefix + data_suffix
+    savepath = data_folder + str(d) + "d" + save_suffix
     os.makedirs(savepath, exist_ok=True)
     
     # Allocate output data arrays
@@ -170,17 +169,10 @@ if __name__ == '__main__':
     np.save(savepath + "params" + ".npy", params)
     np.save(savepath + "velocity" + ".npy", velocity)
     
-    # Adjust resolution of velocity input to PDE solver
-    if d <= K_default:
-        K = K_default
-        kl = kle.MeshKLE(mesh_coords=np.linspace(0,1,K)[None, :], mean_field=3, matern_nu=nu)
-        kl.matern = kl.matern_nu
-        kl.compute_basis(ell, sigma=1, nterms=d)
-        velocity = kl(params.swapaxes(0, 1))
-        velocity = velocity.swapaxes(0, 1)
-    elif d > K:
-        raise ValueError("d cannot be larger than K, the velocity 1D high resolution.")
+    # Adjust resolution of velocity input to PDE solver to avoid interp instability
+    velocity = velocity[..., ::K_sub]
     
+    # Time-step n_train PDEs
     start = default_timer()
     for i, vel in enumerate(velocity):
         t1 = default_timer()
