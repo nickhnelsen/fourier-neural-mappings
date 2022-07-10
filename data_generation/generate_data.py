@@ -158,7 +158,7 @@ if __name__ == '__main__':
     kl.matern = kl.matern_nu
     kl.compute_basis(ell, sigma=1, nterms=d)
     
-    # Sample the input data measure
+    # Sample the input data probability measure
     params = np.random.uniform(-1, 1, (n_train, d))
     velocity = kl(params.swapaxes(0, 1))
     velocity = velocity.swapaxes(0, 1)
