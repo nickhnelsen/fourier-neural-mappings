@@ -1,0 +1,22 @@
+# Installation instructions for forward solver
+
+#########################################################
+
+# REQUIREMENTS: Anaconda, pyapprox, fenics
+
+# 1. Anaconda
+# Download and install conda for your OS at
+#   https://www.anaconda.com/products/individual
+
+# 2. PyApprox 
+cd <path-to-install-directory>
+git clone https://github.com/sandialabs/pyapprox.git  
+cd pyapprox
+conda env create -f environment.yml
+conda activate pyapprox-base
+pip install -e .
+
+# 3. FEniCS (this could take a while)
+conda install -c conda-forge fenics
+
+#########################################################
