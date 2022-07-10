@@ -8,15 +8,13 @@ Created on Fri Jul  8 16:13:16 2022
 
 import os
 from timeit import default_timer
-
 import numpy as np
 import fenics as fe
 import pyapprox.pde.karhunen_loeve_expansion as kle
-
-# For convenience 
 import warnings 
 warnings.filterwarnings('ignore')
 fe.set_log_level(50)
+
 
 # Convenience class, computes solution and stores QoI; contains evaluation wrapper
 class AdvecDiff2D():
@@ -24,32 +22,22 @@ class AdvecDiff2D():
     Wrapper for advection-diffusion in 2D using FEniCS 
     '''
     def __init__(self,
-                 xi,
+                 vel_kl,
                  num_partitions=32,
                  T=0.75,
                  dt=0.01,
-                 nx_kl=101,
-                 nu=np.inf, # other values include 0.5, 1.5, 2.5
-                 ell=0.05, # for operator learning, use 0.05 KLE lengthscale nu=inf or 0.25 nu=1.5
                  store_snapshots=True):
         '''
         Computes solution on num_partitions x num_partitions grid.
         Stores qoi and, if desired, snapshots.
         
         INPUTS:
-            xi              : values of parameter vector, arraylike
+            vel_kl             : values of 1D VELOCITY vector in x1 coord, arraylike
             num_partitions  : size of PDE mesh, int
             T               : final time, float
             dt              : time step, float
             store_snapshots : flag to store solution on mesh, bool
         '''
-        # Parametrization
-        self.xi = np.asarray(xi).flatten()[:,np.newaxis]
-        d = self.xi.size
-        kl = kle.MeshKLE(mesh_coords=np.linspace(0,1,nx_kl)[None, :], mean_field=3, matern_nu=nu)
-        kl.matern = kl.matern_nu
-        kl.compute_basis(ell, sigma=1, nterms=d)
-        
         # Mesh
         mesh = fe.UnitSquareMesh(num_partitions, num_partitions)
         V = fe.FunctionSpace(mesh,'Lagrange',2)
@@ -60,10 +48,10 @@ class AdvecDiff2D():
         # Velocity field
         W = fe.VectorFunctionSpace(mesh, 'Lagrange', 2)
         vel = fe.Function(W)
-        KL_realization = kl(self.xi).flatten()
         xvec = fe.Function(W)
         xvec.assign(fe.project(fe.Expression(('x[0]', 'x[1]'), degree=1),W))
-        v1 = np.interp(xvec.vector()[::2], np.linspace(0,1,nx_kl), KL_realization)
+        v1 = np.asarray(vel_kl).flatten()
+        v1 = np.interp(xvec.vector()[::2], np.linspace(0,1,v1.shape[0]), v1)
         v2 = np.zeros((v1.size,))
         vel.vector()[:] = np.vstack((v1,v2)).T.flatten()
         
@@ -132,16 +120,37 @@ class AdvecDiff2D():
 if __name__ == '__main__':
     
     # USER INPUT
-    data_folder = '/groups/astuart/nnelsen/data/raise/training/nu_inf_ell_p05/'
-    d = 2
-    nu = np.inf     # other values include 0.5, 1.5, 2.5
-    ell = 0.05
-    n_train = 12000
+    # data_folder = '/groups/astuart/nnelsen/data/raise/training/nu_inf_ell_p05/'
+    # data_folder = '/media/nnelsen/SharedNHN/documents/datasets/Sandia/raise/training/nu_inf_ell_p05/'
+    data_folder = '/media/nnelsen/SharedNHN/documents/datasets/Sandia/raise/training/nu_1p5_ell_p25/'
+    save_postfix = '_TESTvel_bigd/'   # '_scratch6k/'
+    d = 100
+    nu = 1.5                 # other values include 0.5, 1.5, 2.5, np.inf
+    ell = 0.25                  # other values: 0.05. 0.25     
+    n_train = 10
     SAVE_AFTER = 20
-    K = 1 + 4096    # velocity 1D resolution
+    K = 1 + 4096                # velocity 1D high resolution
     
+    # Process args
+    if nu > 2.5:
+        nu = np.inf
+        
+    # Adjust resolution of velocity input to PDE solver
+    if nu == np.inf:
+        K_default = 101             # default velocity resolution to PDE solver
+        if d > K_default:
+            raise ValueError("d cannot be larger than K_default.\
+                             We recommend d<=20 if ell=0.25 and d<=50 if ell=0.05")
+    else: # nu = 0.5, 1.5, or 2.5 for Matern covariances
+        K_default = 1001
+        if d > K_default:
+            raise ValueError("d cannot be larger than K_default.\
+                             We recommend d<=1000 if ell=0.25.")
+    if K_default > K:
+        raise ValueError("must be <= K")
+
     # File IO
-    savepath = data_folder + str(d) + "d/"
+    savepath = data_folder + str(d) + "d" + save_postfix
     os.makedirs(savepath, exist_ok=True)
     
     # Allocate output data arrays
@@ -161,10 +170,21 @@ if __name__ == '__main__':
     np.save(savepath + "params" + ".npy", params)
     np.save(savepath + "velocity" + ".npy", velocity)
     
+    # Adjust resolution of velocity input to PDE solver
+    if d <= K_default:
+        K = K_default
+        kl = kle.MeshKLE(mesh_coords=np.linspace(0,1,K)[None, :], mean_field=3, matern_nu=nu)
+        kl.matern = kl.matern_nu
+        kl.compute_basis(ell, sigma=1, nterms=d)
+        velocity = kl(params.swapaxes(0, 1))
+        velocity = velocity.swapaxes(0, 1)
+    elif d > K:
+        raise ValueError("d cannot be larger than K, the velocity 1D high resolution.")
+    
     start = default_timer()
-    for i in range(n_train):
+    for i, vel in enumerate(velocity):
         t1 = default_timer()
-        solution = AdvecDiff2D(params[i, :], nu=nu, ell=ell)
+        solution = AdvecDiff2D(vel)
         t2 = default_timer()
         print("Loop", i + 1, "Time", t2-t1)
         qoi[i] = solution.qoi
