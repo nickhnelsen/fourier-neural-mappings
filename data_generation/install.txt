@@ -19,4 +19,8 @@ pip install -e .
 # 3. FEniCS (this could take a while)
 conda install -c conda-forge fenics
 
+If the installation fails at this step, use mamba:
+conda install mamba -n base -c conda-forge
+mamba install fenics -c conda-forge
+
 #########################################################

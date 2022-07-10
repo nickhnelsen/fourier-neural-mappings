@@ -120,11 +120,11 @@ class AdvecDiff2D():
 if __name__ == '__main__':
     
     # USER INPUT
-    data_suffix = 'nu_1p5_ell_p25/'     # 'nu_inf_ell_p05/'
+    data_suffix = 'nu_inf_ell_p05/'     # 'nu_inf_ell_p05/' or 'nu_1p5_ell_p25/'  
     save_suffix = '_TESTvel_bigd/'      # '_scratch6k/'
     d = 1000                     # number of KLE coefficients; d<=1000 should work, but avoid d near K
-    nu = 1.5                    # values are 0.5, 1.5, 2.5, np.inf
-    ell = 0.25                  # other recommended values: 0.05. 0.25     
+    nu = np.inf                    # values are 0.5, 1.5, 2.5, np.inf
+    ell = 0.05                  # other recommended values: 0.05. 0.25     
     n_train = 10                # number of solves (training sample size)
     SAVE_AFTER = 20             # save qoi every this many solves
     K = 1 + 4096                # velocity 1D high resolution (one plus power of two)
