@@ -7,12 +7,11 @@ Created on Fri Jul  8 16:13:16 2022
 """
 
 import os
+import sys
 from timeit import default_timer
 import numpy as np
-import fenics as fe
 import pyapprox.pde.karhunen_loeve_expansion as kle
-import warnings 
-warnings.filterwarnings('ignore')
+import fenics as fe
 fe.set_log_level(50)
 
 
@@ -119,20 +118,20 @@ class AdvecDiff2D():
 
 if __name__ == '__main__':
     
-    # USER INPUT
-    data_suffix = 'nu_inf_ell_p05/'     # 'nu_inf_ell_p05/' or 'nu_1p5_ell_p25/'  
-    save_suffix = '_TESTvel_bigd/'      # '_scratch6k/'
-    d = 1000                     # number of KLE coefficients; d<=1000 should work, but avoid d near K
-    nu = np.inf                    # values are 0.5, 1.5, 2.5, np.inf
-    ell = 0.05                  # other recommended values: 0.05. 0.25     
-    n_train = 10                # number of solves (training sample size)
+    # DEFAULT INPUTS
     SAVE_AFTER = 20             # save qoi every this many solves
     K = 1 + 4096                # velocity 1D high resolution (one plus power of two)
     K_sub = 16                  # subsample factor with respect to K (power of two)
-    
-    # TODO: sys.argv
-    # Process args
-    if nu > 2.5: # allow easy way to set nu = np.inf from command line
+    save_suffix = '/'           # OPTIONAL description
+
+    # Process command line arguments
+    print(sys.argv)
+    data_suffix = sys.argv[1]   # e.g., 'nu_inf_ell_p05/' or 'nu_1p5_ell_p25/'
+    n_train = int(sys.argv[2])  # number of solves (training sample size)
+    d = int(sys.argv[3])        # number of KLE coefficients; d<=1000 should work, but avoid d near K
+    nu = float(sys.argv[4])     # values are 0.5, 1.5, 2.5, np.inf
+    ell = float(sys.argv[5])    # some recommended values: 0.05, 0.25     
+    if nu > 2.5:                # allow easy way to set nu = np.inf from command line
         nu = np.inf
     if not (nu in [0.5, 1.5, 2.5, np.inf]):
         raise ValueError("nu must be in [0.5, 1.5, 2.5, np.inf]")
@@ -146,13 +145,12 @@ if __name__ == '__main__':
         raise ValueError("d cannot be larger than K, the velocity 1D high resolution. We recommend d << K.")
 
     # File IO
-    # data_prefix = '/groups/astuart/nnelsen/data/raise/training/'
-    data_prefix = '/media/nnelsen/SharedNHN/documents/datasets/Sandia/raise/training/'
+    data_prefix = '/groups/astuart/nnelsen/data/raise/training/'
     data_folder = data_prefix + data_suffix
     savepath = data_folder + str(d) + "d" + save_suffix
     os.makedirs(savepath, exist_ok=True)
     
-    # Allocate output data arrays
+    # Allocate output data array
     qoi = np.zeros(n_train)
     
     # Setup KLE
