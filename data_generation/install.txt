@@ -2,9 +2,9 @@
 
 #########################################################
 
-# REQUIREMENTS: Anaconda, pyapprox, fenics
+# REQUIREMENTS: Anaconda/Miniconda, pyapprox, fenics
 
-# 1. Anaconda
+# 1. Anaconda (miniconda also works)
 # Download and install conda for your OS at
 #   https://www.anaconda.com/products/individual
 
@@ -19,7 +19,7 @@ pip install -e .
 # 3. FEniCS (this could take a while)
 conda install -c conda-forge fenics
 
-If the installation fails at this step, use mamba:
+If the FEniCS installation fails at this step, use mamba:
 conda install mamba -n base -c conda-forge
 mamba install fenics -c conda-forge
 

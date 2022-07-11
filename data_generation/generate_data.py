@@ -121,7 +121,7 @@ if __name__ == '__main__':
     # DEFAULT INPUTS
     SAVE_AFTER = 20             # save qoi every this many solves
     K = 1 + 4096                # velocity 1D high resolution (one plus power of two)
-    K_sub = 16                  # subsample factor with respect to K (power of two)
+    K_sub = 4                   # subsample factor with respect to K (power of two)
     save_suffix = '/'           # OPTIONAL description
     data_prefix = '/groups/astuart/nnelsen/data/raise/training/'
 
@@ -144,6 +144,8 @@ if __name__ == '__main__':
         raise ValueError("K_sub must be power of two")
     if d > K:
         raise ValueError("d cannot be larger than K, the velocity 1D high resolution. We recommend d << K.")
+    if d > (K - 1)//K_sub + 1:
+        print("WARNING: d should not be larger than the subsampled resolution of velocity input.")
 
     # File IO
     data_folder = data_prefix + data_suffix
@@ -167,7 +169,7 @@ if __name__ == '__main__':
     np.save(savepath + "params" + ".npy", params)
     np.save(savepath + "velocity" + ".npy", velocity)
     
-    # Adjust resolution of velocity input to PDE solver to avoid interp instability
+    # Adjust resolution of velocity input to PDE solver for interpolation
     velocity = velocity[..., ::K_sub]
     
     # Time-step n_train PDEs
