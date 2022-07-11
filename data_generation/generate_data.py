@@ -123,6 +123,7 @@ if __name__ == '__main__':
     K = 1 + 4096                # velocity 1D high resolution (one plus power of two)
     K_sub = 16                  # subsample factor with respect to K (power of two)
     save_suffix = '/'           # OPTIONAL description
+    data_prefix = '/groups/astuart/nnelsen/data/raise/training/'
 
     # Process command line arguments
     print(sys.argv)
@@ -145,7 +146,6 @@ if __name__ == '__main__':
         raise ValueError("d cannot be larger than K, the velocity 1D high resolution. We recommend d << K.")
 
     # File IO
-    data_prefix = '/groups/astuart/nnelsen/data/raise/training/'
     data_folder = data_prefix + data_suffix
     savepath = data_folder + str(d) + "d" + save_suffix
     os.makedirs(savepath, exist_ok=True)
