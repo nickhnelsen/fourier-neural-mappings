@@ -41,4 +41,4 @@ for dim in dim_list:
         x = x.permute(1, 2, 0)
         x_all[num, ...] = x
     torch.save({"state": x_all}, savepath + "state" + ".pt")
-    print("state saved for d = ", dim)
+    print("state saved for d =", dim)
