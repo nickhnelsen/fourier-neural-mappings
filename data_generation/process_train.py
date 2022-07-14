@@ -27,21 +27,19 @@ for dim in dim_list:
         x = to_torch(x)
         torch.save({name: x}, savepath + name + ".pt")
 
-# =============================================================================
-# # Save time series
-# for dim in dim_list:
-#     N_train = 12000 if dim in [2, 20, 1000] else 6000
-#     x_all = torch.zeros(N_train, K, K, T)
-#     num_list = list(np.arange(N_train))
-#     loadpath = data_prefix + load_suffix + str(dim) + "d/"
-#     savepath = data_prefix + save_suffix + str(dim) + "d/"
-#     os.makedirs(savepath, exist_ok=True)
-#     for num in num_list:
-#         x = np.load(loadpath + "state" + str(num) + ".npy")
-#         x = x.reshape(T, K, K)
-#         x = to_torch(x)
-#         x = x.permute(1, 2, 0)
-#         x_all[num, ...] = x
-#     torch.save({"state": x_all}, savepath + "state" + ".pt")
-# =============================================================================
-
+# Save time series
+for dim in dim_list:
+    N_train = 10
+    # N_train = 12000 if dim in [2, 20, 1000] else 6000
+    x_all = torch.zeros(N_train, K, K, T)
+    num_list = list(np.arange(N_train))
+    loadpath = data_prefix + load_suffix + str(dim) + "d/"
+    savepath = data_prefix + save_suffix + str(dim) + "d/"
+    os.makedirs(savepath, exist_ok=True)
+    for num in num_list:
+        x = np.load(loadpath + "state" + str(num) + ".npy")
+        x = x.reshape(T, K, K)
+        x = to_torch(x)
+        x = x.permute(1, 2, 0)
+        x_all[num, ...] = x
+    torch.save({"state": x_all}, savepath + "state" + ".pt")
