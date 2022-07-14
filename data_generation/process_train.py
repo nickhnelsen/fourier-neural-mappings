@@ -15,8 +15,7 @@ K = 33
 T = 76
 
 # Save inputs and qoi
-dim_list = [20, 1000]
-# dim_list = [1, 2, 5, 10, 15, 20, 1000]
+dim_list = [1, 2, 5, 10, 15, 20, 1000]
 name_list = ["params", "qoi", "velocity"]
 for dim in dim_list:
     loadpath = data_prefix + load_suffix + str(dim) + "d/"
@@ -29,8 +28,7 @@ for dim in dim_list:
 
 # Save time series
 for dim in dim_list:
-    N_train = 10
-    # N_train = 12000 if dim in [2, 20, 1000] else 6000
+    N_train = 12000 if dim in [2, 20, 1000] else 6000
     x_all = torch.zeros(N_train, K, K, T)
     num_list = list(np.arange(N_train))
     loadpath = data_prefix + load_suffix + str(dim) + "d/"
@@ -43,3 +41,4 @@ for dim in dim_list:
         x = x.permute(1, 2, 0)
         x_all[num, ...] = x
     torch.save({"state": x_all}, savepath + "state" + ".pt")
+    print("state saved for d = ", dim)
