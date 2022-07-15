@@ -13,19 +13,29 @@ from timeit import default_timer
 # user configuration
 #
 ################################################################
+# TODO: add command line
+# Process command line arguments
+print(sys.argv)
+# data_suffix = sys.argv[1]   # e.g., 'nu_inf_ell_p05_torch/2d/' or 'nu_1p5_ell_p25_torch/1000d/'
+# N_train = int(sys.argv[2])  # number of solves (training sample size)
+# save_suffix = sys.argv[3]   # e.g., robustness, scalability, efficiency
+data_suffix = 'nu_inf_ell_p25_torch/2d/'
+save_suffix = '_TEST/'
+save_prefix = 'results/'
+N_train = 10000
+
 # File I/O
-#data_folder = '/media/nnelsen/SharedNHN/documents/datasets/eit/'    # local
-data_folder = '/groups/astuart/nnelsen/data/eit/'                    # HPC
+data_prefix = '/media/nnelsen/SharedNHN/documents/datasets/Sandia/raise/training/'      # local
+# data_prefix = '/groups/astuart/nnelsen/data/raise/training/'                            # HPC
 FLAG_save_model = True
 FLAG_reduce = False
 
-# Sample size
-N_train = 9500      # N_train_max = 10000
-N_test = 500
+# Sample size  
+N_test = 2000        # N_max = 12000
 
 # Resolution subsampling
-sub_in = 2**1       # input subsample factor (power of two) from s_max_out = 512
-sub_out = 2**0      # output subsample factor (power of two) from s_max_out = 256
+sub_in = 2**6       # input subsample factor (power of two) from s_max_in = 4097
+sub_out = 2**0      # output subsample factor (power of two) from s_max_out = 33
 
 # FNO
 modes1 = 12
@@ -34,10 +44,10 @@ width = 32
 
 # Training
 batch_size = 20
-epochs = 100*0 + 3000*0 + 500
+epochs = 500
 learning_rate = 1e-3
 weight_decay = 1e-4
-scheduler_step = 25*0 + 375*0 + 100
+scheduler_step = 100
 scheduler_gamma = 0.5
 
 ################################################################
@@ -48,27 +58,37 @@ scheduler_gamma = 0.5
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print("Device is", device)
 
-x_train = torch.load(data_folder + 'kernel.pt')['kernel'][...,::sub_in,::sub_in]
-y_train = torch.load(data_folder + 'conductivity.pt')['conductivity'][...,::sub_out,::sub_out]
-mask = torch.load(data_folder + 'mask.pt')['mask'][::sub_out,::sub_out]
-mask = mask.to(device)
+# File IO
+data_folder = data_prefix + data_suffix
+savepath = './' + save_prefix + data_suffix[:-1] + save_suffix
+os.makedirs(savepath, exist_ok=True)
 
-x_test = x_train[-N_test:,...]
-x_train = x_train[:N_train,...]
+# TODO: monitor qoi during training?
+# TODO: add noise flag to outputs
+x_train = torch.load(data_folder + 'velocity.pt')['velocity'][...,::sub_in]
+y_train = torch.load(data_folder + 'state.pt')['state'][:,::sub_out,::sub_out,-1]
+# qoi_test = torch.load(data_folder + 'qoi.pt')['qoi']
+
+# TODO: torch.permute to get random training indices like in TORCH_RFM_UQ
+s = x_train.shape[-1]
+x_test = x_train[-N_test:,...].unsqueeze(-1).repeat(1, 1, s) # velocity is constant in y=x_2 direction
+x_train = x_train[:N_train,...].unsqueeze(-1).repeat(1, 1, s) # velocity is constant in y=x_2 direction
 
 y_test = y_train[-N_test:,...]
 y_train = y_train[:N_train,...]
+# qoi_test = qoi_test[-N_test:,...]
 
-x_normalizer = UnitGaussianNormalizer(x_train)
-x_train = x_normalizer.encode(x_train)
-x_test = x_normalizer.encode(x_test)
+# TODO: decide if normalizer is needed on inputs and/or outputs
+# x_normalizer = UnitGaussianNormalizer(x_train)
+# x_train = x_normalizer.encode(x_train)
+# x_test = x_normalizer.encode(x_test)
 
 # Make the singleton channel dimension match the FNO2D model input shape requirement
 x_train = torch.unsqueeze(x_train, 1)
 x_test = torch.unsqueeze(x_test, 1)
 
 train_loader = DataLoader(TensorDataset(x_train, y_train), batch_size=batch_size, shuffle=True)
-test_loader = DataLoader(TensorDataset(x_test, y_test), batch_size=batch_size, shuffle=True)
+test_loader = DataLoader(TensorDataset(x_test, y_test), batch_size=batch_size, shuffle=False)
 
 ################################################################
 #
@@ -77,7 +97,7 @@ test_loader = DataLoader(TensorDataset(x_test, y_test), batch_size=batch_size, s
 ################################################################
 s_outputspace = tuple(y_train.shape[-2:])   # same output shape as the output dataset
 
-model = FNO2d(modes1, modes2, width, s_outputspace=s_outputspace).to(device)
+model = FNO2d(modes1, modes2, width, s_outputspace).to(device)
 print(count_params(model))
 
 optimizer = Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
@@ -87,9 +107,11 @@ if FLAG_reduce:
 
 loss_f = LpLoss(size_average=False)
 
-errors = torch.zeros((epochs,2))
+errors = torch.zeros((epochs, 2))
 
-lowest_test = 10.0 # initialize a test loss threshold
+# TODO: decide if early stopping is needed
+# lowest_test = 10.0 # initialize a test loss threshold
+t0 = default_timer()
 for ep in range(epochs):
     t1 = default_timer()
 
@@ -100,7 +122,7 @@ for ep in range(epochs):
 
         optimizer.zero_grad()
 
-        out = model(x)*mask + ~mask # set model to one outside unit disk of radius 1
+        out = model(x)
 
         loss = loss_f(out, y)
         loss.backward()
@@ -115,7 +137,7 @@ for ep in range(epochs):
         for x, y in test_loader:
             x, y = x.to(device), y.to(device)
 
-            out = model(x)*mask + ~mask # set model to one outside unit disk of radius 1
+            out = model(x)
 
             test_loss += loss_f(out, y).item()
 
@@ -130,12 +152,14 @@ for ep in range(epochs):
     errors[ep,1] = test_loss
 
     if FLAG_save_model:
-        torch.save(model.state_dict(), 'model_last.pt')
-        if test_loss < lowest_test:
-            torch.save(model.state_dict(), 'model.pt')
-            lowest_test = test_loss
+        torch.save(model.state_dict(), savepath + 'model_N' + str(N_train) + '.pt')
+        # if test_loss < lowest_test:
+        #     torch.save(model.state_dict(), 'model.pt')
+        #     lowest_test = test_loss
 
     t2 = default_timer()
 
-    print(ep, train_loss, test_loss, t2-t1)
-    torch.save({'errors': errors}, 'errors.pt')
+    print("Epoch:", ep, "Train L2:", train_loss, "Test L2:", test_loss, "Epoch time:", t2-t1)
+    torch.save({'errors': errors}, savepath + 'errors_N' + str(N_train) + '.pt')
+
+print("Total time elapsed (min):", (default_timer()-t0)/60., "Total epochs trained:", epochs)

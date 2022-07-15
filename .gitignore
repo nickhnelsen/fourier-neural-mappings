@@ -133,7 +133,7 @@ dmypy.json
 *.png
 *.jpeg
 
-# NHN
+# USER
 desktop.ini
 *.npy
 *.gif
@@ -142,21 +142,12 @@ desktop.ini
 z_*
 **/z_*/
 **/__*/
+*.out
 
-# EIT
-**/BoundaryDataN.mat
-**/ex2DN.mat
-**/single_conductivity.mat
-**/ND.mat
-**/ex2psi_BIE.mat
-**/ex2tBIE.mat
-**/ex2recon.mat
-**/eit_*
+# FNF
 **/R-*
-# **/ex_f_maps.mat
-**/test_N3_heartNlungs.mat
 **/errors.pt
-**/model.pt
+**/model*
 **/job_*
-**/test_N3_heartNlungs_rhop7.mat
-fno_kernel/figures
+**/figures
+**/results
