@@ -20,9 +20,10 @@ print(sys.argv)
 # N_train = int(sys.argv[2])  # number of solves (training sample size)
 # save_suffix = sys.argv[3]   # e.g., robustness, scalability, efficiency
 data_suffix = 'nu_inf_ell_p25_torch/2d/'
-save_suffix = '_TEST/'
-save_prefix = 'results/'
-N_train = 10000
+save_suffix = '_TEST_bothVel/'
+save_prefix = 'results/'        # e.g., robustness, scalability, efficiency
+N_train = 1000
+sigma = 0 # TODO: noise stdev
 
 # File I/O
 data_prefix = '/media/nnelsen/SharedNHN/documents/datasets/Sandia/raise/training/'      # local
@@ -31,7 +32,7 @@ FLAG_save_model = True
 FLAG_reduce = False
 
 # Sample size  
-N_test = 2000        # N_max = 12000
+N_test = 100
 
 # Resolution subsampling
 sub_in = 2**6       # input subsample factor (power of two) from s_max_in = 4097
@@ -44,7 +45,7 @@ width = 32
 
 # Training
 batch_size = 20
-epochs = 500
+epochs = 100
 learning_rate = 1e-3
 weight_decay = 1e-4
 scheduler_step = 100
@@ -65,14 +66,17 @@ os.makedirs(savepath, exist_ok=True)
 
 # TODO: monitor qoi during training?
 # TODO: add noise flag to outputs
-x_train = torch.load(data_folder + 'velocity.pt')['velocity'][...,::sub_in]
-y_train = torch.load(data_folder + 'state.pt')['state'][:,::sub_out,::sub_out,-1]
+y_train = torch.load(data_folder + 'velocity.pt')['velocity'][:,::sub_in]
+N_max, s = y_train.shape
+assert max(N_train, N_test) <= N_max
+x_train = torch.zeros(N_max, 2, s)
+x_train[:, 0, :] = y_train
+y_train = torch.load(data_folder + 'state.pt')['state'][:,::sub_out,::sub_out,-1] # final time state only
 # qoi_test = torch.load(data_folder + 'qoi.pt')['qoi']
 
 # TODO: torch.permute to get random training indices like in TORCH_RFM_UQ
-s = x_train.shape[-1]
-x_test = x_train[-N_test:,...].unsqueeze(-1).repeat(1, 1, s) # velocity is constant in y=x_2 direction
-x_train = x_train[:N_train,...].unsqueeze(-1).repeat(1, 1, s) # velocity is constant in y=x_2 direction
+x_test = x_train[-N_test:,...].unsqueeze(-1).repeat(1, 1, 1, s) # velocity is constant in y=x_2 direction
+x_train = x_train[:N_train,...].unsqueeze(-1).repeat(1, 1, 1, s) # velocity is constant in y=x_2 direction
 
 y_test = y_train[-N_test:,...]
 y_train = y_train[:N_train,...]
@@ -82,10 +86,6 @@ y_train = y_train[:N_train,...]
 # x_normalizer = UnitGaussianNormalizer(x_train)
 # x_train = x_normalizer.encode(x_train)
 # x_test = x_normalizer.encode(x_test)
-
-# Make the singleton channel dimension match the FNO2D model input shape requirement
-x_train = torch.unsqueeze(x_train, 1)
-x_test = torch.unsqueeze(x_test, 1)
 
 train_loader = DataLoader(TensorDataset(x_train, y_train), batch_size=batch_size, shuffle=True)
 test_loader = DataLoader(TensorDataset(x_test, y_test), batch_size=batch_size, shuffle=False)

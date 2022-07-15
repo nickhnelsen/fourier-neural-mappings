@@ -64,7 +64,7 @@ class FNO2d(nn.Module):
         self.num_pad_outputspace = tuple([s//self.padding for s in list(s_outputspace)])
         self.s_outputspace = tuple([s + s//self.padding for s in list(s_outputspace)])
 
-        self.fc0 = nn.Linear(3, self.width) # input channel size is 3 (scalar input + two space variables)
+        self.fc0 = nn.Linear(4, self.width) # input channel size is 4 (2 velocity inputs + 2 space variables)
 
         self.conv0 = SpectralConv2d(self.width, self.width, self.modes1, self.modes2)
         self.conv1 = SpectralConv2d(self.width, self.width, self.modes1, self.modes2)
