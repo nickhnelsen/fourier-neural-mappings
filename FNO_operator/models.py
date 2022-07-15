@@ -113,7 +113,7 @@ class FNO2d(nn.Module):
         x = x1 + x2
 
         # Final projection layer
-        x = x[..., :-x.shape[-1]//(1+self.padding), :-x.shape[-2]//(1+self.padding)]
+        x = x[..., :-self.num_pad_outputspace[-2], :-self.num_pad_outputspace[-1]]
         x = x.permute(0, 2, 3, 1)
         x = self.fc1(x)
         x = F.gelu(x)
