@@ -24,12 +24,11 @@ class SpectralConv2d(nn.Module):
         return torch.einsum("bixy,ioxy->boxy", input_batch, weights)
 
     def forward(self, x, s=None):
-        batchsize = x.shape[0]
         # Compute Fourier coeffcients
         x_ft = fft.rfft2(x)
 
         # Multiply relevant Fourier modes
-        out_ft = torch.zeros(batchsize, self.out_channels,  x.size(-2), x.size(-1)//2 + 1, dtype=torch.cfloat, device=x.device)
+        out_ft = torch.zeros(x.shape[0], self.out_channels,  x.size(-2), x.size(-1)//2 + 1, dtype=torch.cfloat, device=x.device)
         out_ft[:, :, :self.modes1, :self.modes2] = \
             self.compl_mul2d(x_ft[:, :, :self.modes1, :self.modes2], self.weights1)
         out_ft[:, :, -self.modes1:, :self.modes2] = \
@@ -44,13 +43,14 @@ class SpectralConv2d(nn.Module):
         return x
 
 class FNO2d(nn.Module):
-    def __init__(self, modes1, modes2, width, s_outputspace, width_final=128, padding=8, d_out=1):
+    def __init__(self, modes1, modes2, width, s_outputspace, width_final=128, padding=8, d_in=4, d_out=1):
         """
         modes1, modes2 (int): Fourier mode truncation levels
         width (int): dimension of channel space
         s_outputspace (list or tuple, length 2): desired spatial resolution (s,s) in output space
         width_final (int): width of the final projection layer
         padding (int or float): (1.0/padding) is fraction of domain to zero pad (the input is not periodic)
+        d_in  (int): nummber of input channels (here 2 velocity inputs + 2 space variables)
         d_out (int): one output channel (co-domain dimension of output space functions)
         """
         super(FNO2d, self).__init__()
@@ -60,11 +60,12 @@ class FNO2d(nn.Module):
         self.width = width
         self.width_final = width_final
         self.padding = padding
+        self.d_in = d_in
         self.d_out = d_out 
         self.num_pad_outputspace = tuple([s//self.padding for s in list(s_outputspace)])
         self.s_outputspace = tuple([s + s//self.padding for s in list(s_outputspace)])
 
-        self.fc0 = nn.Linear(4, self.width) # input channel size is 4 (2 velocity inputs + 2 space variables)
+        self.fc0 = nn.Linear(self.d_in, self.width)
 
         self.conv0 = SpectralConv2d(self.width, self.width, self.modes1, self.modes2)
         self.conv1 = SpectralConv2d(self.width, self.width, self.modes1, self.modes2)
