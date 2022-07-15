@@ -10,7 +10,7 @@ class SpectralConv2d(nn.Module):
         self.in_channels = in_channels
         self.out_channels = out_channels
 
-        #Number of Fourier modes to multiply, at most floor(N/2) + 1
+        # Number of Fourier modes to multiply, at most floor(N/2) + 1
         self.modes1 = modes1 
         self.modes2 = modes2
 
@@ -19,13 +19,13 @@ class SpectralConv2d(nn.Module):
         self.weights2 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1, self.modes2, dtype=torch.cfloat))
 
     # Complex multiplication
-    def compl_mul2d(self, input, weights):
+    def compl_mul2d(self, input_batch, weights):
         # (batch, in_channel, x,y ), (in_channel, out_channel, x,y) -> (batch, out_channel, x,y)
-        return torch.einsum("bixy,ioxy->boxy", input, weights)
+        return torch.einsum("bixy,ioxy->boxy", input_batch, weights)
 
     def forward(self, x, s=None):
         batchsize = x.shape[0]
-        #Compute Fourier coeffcients
+        # Compute Fourier coeffcients
         x_ft = fft.rfft2(x)
 
         # Multiply relevant Fourier modes
@@ -35,7 +35,7 @@ class SpectralConv2d(nn.Module):
         out_ft[:, :, -self.modes1:, :self.modes2] = \
             self.compl_mul2d(x_ft[:, :, -self.modes1:, :self.modes2], self.weights2)
 
-        #Return to physical space
+        # Return to physical space
         if s is None:
             x = fft.irfft2(out_ft, s=(x.size(-2), x.size(-1)))
         else:
@@ -44,18 +44,25 @@ class SpectralConv2d(nn.Module):
         return x
 
 class FNO2d(nn.Module):
-    def __init__(self, modes1, modes2, width, width_final=128, padding=9, s_outputspace=None, d_out=1):
+    def __init__(self, modes1, modes2, width, s_outputspace, width_final=128, padding=8, d_out=1):
+        """
+        modes1, modes2 (int): Fourier mode truncation levels
+        width (int): dimension of channel space
+        s_outputspace (list or tuple, length 2): desired spatial resolution (s,s) in output space
+        width_final (int): width of the final projection layer
+        padding (int or float): (1.0/padding) is fraction of domain to zero pad (the input is not periodic)
+        d_out (int): one output channel (co-domain dimension of output space functions)
+        """
         super(FNO2d, self).__init__()
 
         self.modes1 = modes1
         self.modes2 = modes2
         self.width = width
-        self.width_final = width_final # width of the final projection layer
-        self.padding = padding # pad the domain if input is non-periodic
-        if s_outputspace is not None:
-            s_outputspace = tuple([x + self.padding for x in list(s_outputspace)])
-        self.s_outputspace = s_outputspace # (2,) tuple: resolution in output space, if different than input
-        self.d_out = d_out # one output channel (co-domain dimension of output space functions)
+        self.width_final = width_final
+        self.padding = padding
+        self.d_out = d_out 
+        self.num_pad_outputspace = tuple([s//self.padding for s in list(s_outputspace)])
+        self.s_outputspace = tuple([s + s//self.padding for s in list(s_outputspace)])
 
         self.fc0 = nn.Linear(3, self.width) # input channel size is 3 (scalar input + two space variables)
 
@@ -77,14 +84,12 @@ class FNO2d(nn.Module):
         Input shape: (batch, channels=1, x, y)
         Output shape: (batch, channels=1, x, y)
         """
-        
         # Lifting layer
         x = x.permute(0, 2, 3, 1)
-        grid = self.get_grid(x.shape, x.device)
-        x = torch.cat((x, grid), dim=-1)
+        x = torch.cat((x, self.get_grid(x.shape, x.device)), dim=-1)
         x = self.fc0(x)
         x = x.permute(0, 3, 1, 2)
-        x = F.pad(x, [0, self.padding, 0, self.padding])
+        x = F.pad(x, [0, x.shape[-1]//self.padding, 0, x.shape[-2]//self.padding])
 
         # Four Fourier integral operator layers
         x1 = self.conv0(x)
@@ -108,7 +113,7 @@ class FNO2d(nn.Module):
         x = x1 + x2
 
         # Final projection layer
-        x = x[..., :-self.padding, :-self.padding]
+        x = x[..., :-x.shape[-1]//(1+self.padding), :-x.shape[-2]//(1+self.padding)]
         x = x.permute(0, 2, 3, 1)
         x = self.fc1(x)
         x = F.gelu(x)
