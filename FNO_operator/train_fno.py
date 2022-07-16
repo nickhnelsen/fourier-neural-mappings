@@ -16,9 +16,12 @@ from timeit import default_timer
 # TODO: add command line
 # Process command line arguments
 print(sys.argv)
-# data_suffix = sys.argv[1]   # e.g., 'nu_inf_ell_p05_torch/' or 'nu_1p5_ell_p25_torch/'
-# N_train = int(sys.argv[2])  # number of solves (training sample size)
-# save_prefix = sys.argv[3]   # e.g., robustness, scalability, efficiency
+# save_prefix = sys.argv[1]   # e.g., robustness, scalability, efficiency
+# data_suffix = sys.argv[2]   # e.g., 'nu_inf_ell_p05_torch/' or 'nu_1p5_ell_p25_torch/'
+# N_train = int(sys.argv[3])  # training sample size
+# d_str = sys.argv[4]         # KLE dimension of training inputs
+# sigma = int(sys.argv[5])    # index between 0 and 8 that defines the noise standard deviation
+
 save_prefix = 'robustness_TEST/'    # e.g., robustness, scalability, efficiency
 data_suffix = 'nu_inf_ell_p25_torch/'
 N_train = 1000
@@ -27,7 +30,7 @@ sigma = 0                   # index between 0 and 8
 
 # TODO: MC loop
 
-# File I/O
+# File paths
 data_prefix = '/media/nnelsen/SharedNHN/documents/datasets/Sandia/raise/training/'      # local
 # data_prefix = '/groups/astuart/nnelsen/data/raise/training/'                            # HPC
 FLAG_save_model = True
@@ -100,7 +103,7 @@ test_loader = DataLoader(TensorDataset(x_test, y_test), batch_size=batch_size, s
 
 ################################################################
 #
-# training and evaluation
+# training
 #
 ################################################################
 s_outputspace = tuple(y_train.shape[-2:])   # same output shape as the output dataset
@@ -162,3 +165,30 @@ for ep in range(epochs):
     torch.save({'errors': errors}, savepath + 'errors' + obj_suffix)
 
 print("Total time elapsed (min):", (default_timer()-t0)/60., "Total epochs trained:", epochs)
+
+################################################################
+#
+# evaluation
+#
+################################################################
+data_prefix = '/media/nnelsen/SharedNHN/documents/datasets/Sandia/raise/validation/'      # local
+# data_prefix = '/groups/astuart/nnelsen/data/raise/validation/'                            # HPC
+
+# File IO
+data_folder = data_prefix + d_str + 'd_torch/'
+
+# Load
+y_test = torch.load(data_folder + 'velocity.pt')['velocity'][:,::sub_in]
+N_test_max, s_test = y_test.shape
+x_test = torch.zeros(N_test_max, 2, s_test)
+x_test[:, 0, :] = y_test
+y_test = torch.load(data_folder + 'state.pt')['state'][:,::sub_out,::sub_out,-1] # final time state only
+qoi_test = torch.load(data_folder + 'qoi.pt')['qoi']
+
+# Process
+x_test = x_test.unsqueeze(-1).repeat(1, 1, 1, s) # velocity is constant in y=x_2 direction
+
+test_loader = DataLoader(TensorDataset(x_test, y_test), batch_size=batch_size, shuffle=False)
+
+
+
