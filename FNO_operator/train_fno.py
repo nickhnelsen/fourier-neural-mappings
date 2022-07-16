@@ -245,7 +245,7 @@ torch.save({'qoi_bochner_loss': test_errors, 'test_list': errors_test},\
            savepath + 'test_errors' + obj_suffix)
 
 # TODO: remove for public version of code
-# Evaluate trained model on 2D parameter grid
+# Evaluate trained model on 2D parameter grid and save result to .pt file
 x_test = torch.load(data_prefix + '2d_qoi_plot/' + 'velocity.pt')['velocity'][:,::sub_in]
 N_grid, s_grid = x_test.shape
 x_grid = torch.zeros(N_grid, 2, s_grid)
@@ -258,13 +258,24 @@ with torch.no_grad():
         x = x.to(device)
         qoi_grid[idx_grid] = model(x).squeeze().cpu()[..., idx_qoi[-2], idx_qoi[-1]]
 torch.save({'qoi_grid': qoi_grid}, savepath + 'qoi_grid' + obj_suffix)
-grid = torch.load(data_prefix + '2d_qoi_plot/' + 'params.pt')['params']
-grid = grid.reshape(s_outputspace[-2], s_outputspace[-1], -1)
-plt.contourf(grid[...,-2], grid[...,-1],\
-             qoi_grid.reshape(s_outputspace[-2], s_outputspace[-1]), cmap=cm.viridis)
-plt.title(r'FNO $(N=%d, d_{\mathrm{tr}}=%d, \sigma=0)$' % (N_train, int(d_str)))
-plt.xlabel(r'$\xi_1$')
-plt.ylabel(r'$\xi_2$')
-plt.colorbar(label=r'QoI')
+
+################################################################
+#
+# plotting
+#
+################################################################
+
 if FLAG_save_plots:
+    plot_folder = savepath + "figures/"
+    os.makedirs(plot_folder, exist_ok=True)
+    
+    grid = torch.load(data_prefix + '2d_qoi_plot/' + 'params.pt')['params']
+    grid = grid.reshape(s_outputspace[-2], s_outputspace[-1], -1)
+    plt.contourf(grid[...,-2], grid[...,-1],\
+                  qoi_grid.reshape(s_outputspace[-2], s_outputspace[-1]), cmap=cm.viridis)
+    plt.title(r'FNO $(N=%d, d_{\mathrm{tr}}=%d, \sigma=0)$' % (N_train, int(d_str)))
+    plt.xlabel(r'$\xi_1$')
+    plt.ylabel(r'$\xi_2$')
+    plt.colorbar(label=r'QoI')
+    
     plt.savefig(savepath + 'qoi_grid' + obj_suffix[:-2] + 'pdf', format='pdf')
