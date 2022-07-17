@@ -14,7 +14,8 @@ mpl.rcParams['xtick.labelsize'] = 20
 mpl.rcParams['ytick.labelsize'] = 20
 mpl.rcParams['legend.fontsize'] = 16
 #print mpl.rcParams.keys()
-mpl.rcParams['text.latex.preamble'] = r'\usepackage{siunitx}\usepackage{amsmath}\usepackage{amssymb}'
+#mpl.rcParams['text.latex.preamble'] = r'\usepackage{siunitx}\usepackage{amsmath}\usepackage{amssymb}'
+mpl.rcParams['text.latex.preamble'] = r'\usepackage{amsmath}\usepackage{amssymb}' # siunitx is not available on older versions of TexLive
 
 # NOTES
 # using plt.plot(visible=False ) will allow linestyle/marker to be included
