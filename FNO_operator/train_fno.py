@@ -1,12 +1,13 @@
 import torch
+import numpy as np
+import os, sys; sys.path.append(os.path.join('..'))
+from timeit import default_timer
 
 from models import FNO2d
-import os, sys; sys.path.append(os.path.join('..'))
 from util.Adam import Adam
 from util.utilities_module import LpLoss, LppLoss, count_params, validate, dataset_with_indices
 from torch.utils.data import TensorDataset, DataLoader
 TensorDatasetID = dataset_with_indices(TensorDataset)
-from timeit import default_timer
 
 ################################################################
 #
@@ -22,10 +23,10 @@ print(sys.argv)
 # d_str = sys.argv[4]         # KLE dimension of training inputs
 # sigma = int(sys.argv[5])    # index between 0 and 8 that defines the noise standard deviation
 
-save_prefix = 'robustness_TEST_eval/'    # e.g., robustness, scalability, efficiency
+save_prefix = 'robustness_TEST_npy/'    # e.g., robustness, scalability, efficiency
 data_suffix = 'nu_inf_ell_p25_torch/'
 N_train = 100
-d_str = '2'
+d_str = '5'
 sigma = 0                   # index between 0 and 8
 
 # TODO: MC loop
@@ -67,7 +68,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print("Device is", device)
 
 # File IO
-obj_suffix = '_n' + str(N_train) + '_d' + d_str + '_s' + str(sigma) + '.pt'
+obj_suffix = '_n' + str(N_train) + '_d' + d_str + '_s' + str(sigma) + '.npy'
 data_folder = data_prefix + data_suffix + d_str + 'd/'
 savepath = './results/' + save_prefix + data_suffix
 os.makedirs(savepath, exist_ok=True)
@@ -82,7 +83,8 @@ y_train = torch.load(data_folder + 'state.pt')['state'][:,::sub_out,::sub_out,-1
 
 # Shuffle
 dataset_shuffle_idx = torch.randperm(N_max)
-torch.save({'shuffle_idx': dataset_shuffle_idx}, savepath + 'shuffle_idx' + obj_suffix)
+np.save(savepath + 'idx_shuffle' + obj_suffix, dataset_shuffle_idx.numpy())
+# torch.save({'shuffle_idx': dataset_shuffle_idx}, savepath + 'shuffle_idx' + obj_suffix)
 x_train = x_train[dataset_shuffle_idx, ...]
 y_train = y_train[dataset_shuffle_idx, ...]
 
@@ -160,12 +162,13 @@ for ep in range(epochs):
     errors[ep,1] = test_loss
 
     if FLAG_save_model:
-        torch.save(model.state_dict(), savepath + 'model' + obj_suffix)
+        torch.save(model.state_dict(), savepath + 'model' + obj_suffix[:-3] + 'pt')
 
     t2 = default_timer()
 
     print("Epoch:", ep, "Train L2:", train_loss, "Test L2:", test_loss, "Epoch time:", t2-t1)
-    torch.save({'train_errors': errors}, savepath + 'train_errors' + obj_suffix)
+    np.save(savepath + 'train_errors' + obj_suffix, errors.numpy())
+    # torch.save({'train_errors': errors}, savepath + 'train_errors' + obj_suffix)
 
 print("Total time elapsed (min):", (default_timer()-t0)/60., "Total epochs trained:", epochs)
 
@@ -233,9 +236,11 @@ print("Average relative L2 test:", er_test_loss, "Relative Bochner L2 test:", er
 print("Relative L2 QoI test error:", er_test_qoi)
 
 # Save test errors
-test_errors = [er_test_qoi, er_test_bochner, er_test_loss]
-torch.save({'qoi_bochner_loss': test_errors, 'test_list': errors_test},\
-           savepath + 'test_errors' + obj_suffix_eval)
+test_errors = np.array([er_test_qoi, er_test_bochner, er_test_loss])
+np.savez(savepath + 'test_errors' + obj_suffix_eval[:-3] + 'npz', qoi_bochner_loss=test_errors,\
+         rel_test_error_list=errors_test.numpy())
+# torch.save({'qoi_bochner_loss': test_errors, 'test_list': errors_test},\
+#            savepath + 'test_errors' + obj_suffix_eval)
 
 # TODO: remove for public version of code
 # Evaluate trained model on 2D parameter grid and save result to .pt file
@@ -251,7 +256,8 @@ with torch.no_grad():
     for x, _, idx_grid in grid_loader:
         x = x.to(device)
         qoi_grid[idx_grid] = model(x).squeeze().cpu()[..., idx_qoi[-2], idx_qoi[-1]]
-torch.save({'qoi_grid': qoi_grid}, savepath + 'qoi_grid' + obj_suffix)
+np.save(savepath + 'qoi_grid' + obj_suffix, qoi_grid.numpy())
+# torch.save({'qoi_grid': qoi_grid}, savepath + 'qoi_grid' + obj_suffix)
 
 ################################################################
 #
@@ -278,7 +284,7 @@ if FLAG_save_plots:
     plt.xlabel(r'Epoch')
     plt.ylabel(r'Error')
     plt.legend(["Train", "Test"])
-    plt.savefig(plot_folder + "epochs" + obj_suffix[:-2] + "pdf", format='pdf')
+    plt.savefig(plot_folder + "epochs" + obj_suffix[:-3] + "pdf", format='pdf')
     
     # Make 2D QoI grid plot
     grid = torch.load(data_prefix_eval + '2d_qoi_plot/' + 'params.pt')['params']
@@ -290,16 +296,15 @@ if FLAG_save_plots:
     plt.xlabel(r'$\xi_1$')
     plt.ylabel(r'$\xi_2$')
     plt.colorbar(label=r'QoI')
-    plt.savefig(plot_folder + 'qoi_grid' + obj_suffix[:-2] + 'pdf', format='pdf')
+    plt.savefig(plot_folder + 'qoi_grid' + obj_suffix[:-3] + 'pdf', format='pdf')
     
     # Begin three errors plots
     idx_worst = torch.argmax(errors_test).item()
     idx_median = torch.argsort(errors_test)[errors_test.shape[0]//2].item()
     idx_best = torch.argmin(errors_test).item()
     idxs = [idx_worst, idx_median, idx_best]
+    np.save(savepath + 'idx_min_med_max' + obj_suffix_eval, np.array(idxs))
     names = ["worst", "median", "best"]
-    fraction = 0.046
-    pad = 0.01
     XX = torch.linspace(0, 1, y_test.shape[-1])
     (YY, XX) = torch.meshgrid(XX, XX)
     for i, idx in enumerate(idxs):
@@ -368,7 +373,7 @@ if FLAG_save_plots:
         cb11.set_label(r'Error')
         
         # Save min, median, max error plots (contour)
-        plt.savefig(plot_folder + "eval_" + names[i] + obj_suffix[:-2] + "pdf", format='pdf')
+        plt.savefig(plot_folder + "eval_" + names[i] + obj_suffix[:-3] + "pdf", format='pdf')
     
     # Close open figure if running interactively
     plt.close()
