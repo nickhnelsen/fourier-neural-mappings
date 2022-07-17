@@ -260,6 +260,8 @@ torch.save({'qoi_grid': qoi_grid}, savepath + 'qoi_grid' + obj_suffix_og)
 ################################################################
 if FLAG_save_plots:
     from util.configure_plots import plt, mpl
+    from mpl_toolkits.axes_grid1 import ImageGrid
+
     plt.rcParams['figure.figsize'] = [6.0, 4.0]
     plt.rcParams['font.size'] = 16
     plt.rcParams['figure.dpi'] = 250
@@ -307,38 +309,9 @@ if FLAG_save_plots:
         plot_testsort = test_out[idx,...].squeeze()
         er_testsort = torch.abs(plot_testsort - true_testsort).squeeze()
         
-# =============================================================================
-#         # Heat maps
-#         plt.close()
-#         fig, ax = plt.subplots(2,2)
-#         fig.set_size_inches(15,15)
-#         
-#         ax[0,0].imshow(plot_testsort, origin='lower', interpolation=interpolation, extent=extent)
-#         ax[0,0].set_title('FNO Output', fontsize=14)
-#         ax[0,0].axes.xaxis.set_visible(False)
-#         ax[0,0].set_ylabel(r'$x_2$')
-#         
-#         ax01 = ax[0,1].imshow(true_testsort, origin='lower', interpolation=interpolation, extent=extent)
-#         ax[0,1].set_title('True Final State', fontsize=14)
-#         ax[0,1].axes.xaxis.set_visible(False)
-#         ax[0,1].axes.yaxis.set_visible(False)
-#         plt.colorbar(ax01, label=r'State', ax=ax[0,1], fraction=fraction, pad=pad)
-#         
-#         ax[1,0].plot(torch.linspace(0, 1, s_test), x_test[idx, 0, :, 0].squeeze())
-#         ax[1,0].grid(visible=True)
-#         ax[1,0].set_title('Velocity Input Profile ' + '(' + names[i] + ')', fontsize=14)
-#         ax[1,0].set_xlabel(r'$x_1$')
-#         ax[1,0].set_ylabel(r'$v_1(x_1, 0; \xi)$')
-#         
-#         ax11 = ax[1,1].imshow(er_testsort, origin='lower', interpolation=interpolation, extent=extent)
-#         ax[1,1].set_title('Pointwise Absolute Error', fontsize=14)
-#         ax[1,1].set_xlabel(r'$x_1$')
-#         ax[1,1].set_ylabel(r'$x_2$')
-#         plt.colorbar(ax11, label=r'Error', ax=ax[1,1], fraction=fraction, pad=pad)
-#         
-#         # Save min, median, max error plots (heat)
-#         plt.savefig(plot_folder + "eval_heat_" + names[i] + obj_suffix[:-2] + "pdf", format='pdf')
-# =============================================================================
+        
+        
+        
         
         plt.close()
         fig, ax = plt.subplots(2,2)
