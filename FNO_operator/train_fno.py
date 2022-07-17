@@ -32,10 +32,10 @@ sigma = 0                   # index between 0 and 8
 # TODO: MC loop
 
 # File I/O
-data_prefix = '/media/nnelsen/SharedNHN/documents/datasets/Sandia/raise/training/'      # local
-# data_prefix = '/groups/astuart/nnelsen/data/raise/training/'                            # HPC
-data_prefix_eval = '/media/nnelsen/SharedNHN/documents/datasets/Sandia/raise/validation/'      # local
-# data_prefix_eval = '/groups/astuart/nnelsen/data/raise/validation/'                            # HPC
+# data_prefix = '/media/nnelsen/SharedNHN/documents/datasets/Sandia/raise/training/'      # local
+data_prefix = '/groups/astuart/nnelsen/data/raise/training/'                            # HPC
+# data_prefix_eval = '/media/nnelsen/SharedNHN/documents/datasets/Sandia/raise/validation/'      # local
+data_prefix_eval = '/groups/astuart/nnelsen/data/raise/validation/'                            # HPC
 FLAG_save_model = True
 FLAG_save_plots = True
 
