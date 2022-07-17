@@ -329,6 +329,7 @@ if FLAG_save_plots:
         ax01 = grid[1].contourf(XX, YY, true_testsort, vmin=0, vmax=15, cmap=mpl.cm.viridis)
         grid[1].set_title('True Final State', fontsize=16)
         grid[1].set_xlabel(r'$x_1$')
+        grid[1].axes.yaxis.set_visible(False)
         cb01 = grid[1].cax.colorbar(ax01)
         grid[1].cax.toggle_label(True)
         cb01.set_label(r'State')
