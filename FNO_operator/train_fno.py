@@ -84,7 +84,6 @@ y_train = torch.load(data_folder + 'state.pt')['state'][:,::sub_out,::sub_out,-1
 # Shuffle
 dataset_shuffle_idx = torch.randperm(N_max)
 np.save(savepath + 'idx_shuffle' + obj_suffix, dataset_shuffle_idx.numpy())
-# torch.save({'shuffle_idx': dataset_shuffle_idx}, savepath + 'shuffle_idx' + obj_suffix)
 x_train = x_train[dataset_shuffle_idx, ...]
 y_train = y_train[dataset_shuffle_idx, ...]
 
@@ -168,7 +167,6 @@ for ep in range(epochs):
 
     print("Epoch:", ep, "Train L2:", train_loss, "Test L2:", test_loss, "Epoch time:", t2-t1)
     np.save(savepath + 'train_errors' + obj_suffix, errors.numpy())
-    # torch.save({'train_errors': errors}, savepath + 'train_errors' + obj_suffix)
 
 print("Total time elapsed (min):", (default_timer()-t0)/60., "Total epochs trained:", epochs)
 
@@ -239,8 +237,6 @@ print("Relative L2 QoI test error:", er_test_qoi)
 test_errors = np.array([er_test_qoi, er_test_bochner, er_test_loss])
 np.savez(savepath + 'test_errors' + obj_suffix_eval[:-3] + 'npz', qoi_bochner_loss=test_errors,\
          rel_test_error_list=errors_test.numpy())
-# torch.save({'qoi_bochner_loss': test_errors, 'test_list': errors_test},\
-#            savepath + 'test_errors' + obj_suffix_eval)
 
 # TODO: remove for public version of code
 # Evaluate trained model on 2D parameter grid and save result to .pt file
@@ -257,7 +253,6 @@ with torch.no_grad():
         x = x.to(device)
         qoi_grid[idx_grid] = model(x).squeeze().cpu()[..., idx_qoi[-2], idx_qoi[-1]]
 np.save(savepath + 'qoi_grid' + obj_suffix, qoi_grid.numpy())
-# torch.save({'qoi_grid': qoi_grid}, savepath + 'qoi_grid' + obj_suffix)
 
 ################################################################
 #
@@ -373,7 +368,7 @@ if FLAG_save_plots:
         cb11.set_label(r'Error')
         
         # Save min, median, max error plots (contour)
-        plt.savefig(plot_folder + "eval_" + names[i] + obj_suffix[:-3] + "pdf", format='pdf')
+        plt.savefig(plot_folder + "eval_" + names[i] + obj_suffix_eval[:-3] + "pdf", format='pdf')
     
     # Close open figure if running interactively
     plt.close()
