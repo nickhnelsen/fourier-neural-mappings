@@ -180,8 +180,7 @@ if d_str == '1000':
 else:
     d_test_str = d_str
 data_folder = data_prefix_eval + d_test_str + 'd_torch/'
-obj_suffix_og = obj_suffix
-obj_suffix = '_TESTd' + d_test_str + obj_suffix_og
+obj_suffix_eval = '_TESTd' + d_test_str + obj_suffix
 
 # Load
 y_test = torch.load(data_folder + 'velocity.pt')['velocity'][:,::sub_in]
@@ -192,6 +191,7 @@ y_test = torch.load(data_folder + 'state.pt')['state'][:,::sub_out,::sub_out,-1]
 qoi_test = torch.load(data_folder + 'qoi.pt')['qoi']
 
 # Process
+s_outputtest = y_test.shape[-2:]
 x_test = x_test.unsqueeze(-1).repeat(1, 1, 1, s_test) # velocity is constant in y=x_2 direction
 test_loader = DataLoader(TensorDatasetID(x_test, y_test), batch_size=batch_size, shuffle=False)
 
@@ -206,7 +206,7 @@ num = 0.0
 den = 0.0
 test_out = torch.zeros(y_test.shape)
 qoi_out = torch.zeros(N_test_max)
-idx_qoi = torch.div(torch.tensor(s_outputspace), 2, rounding_mode="floor") + 1
+idx_qoi = torch.div(torch.tensor(s_outputtest), 2, rounding_mode="floor")
 errors_test = torch.zeros(y_test.shape[0])
 with torch.no_grad():
     for x, y, idx_test in test_loader:
@@ -235,7 +235,7 @@ print("Relative L2 QoI test error:", er_test_qoi)
 # Save test errors
 test_errors = [er_test_qoi, er_test_bochner, er_test_loss]
 torch.save({'qoi_bochner_loss': test_errors, 'test_list': errors_test},\
-           savepath + 'test_errors' + obj_suffix)
+           savepath + 'test_errors' + obj_suffix_eval)
 
 # TODO: remove for public version of code
 # Evaluate trained model on 2D parameter grid and save result to .pt file
@@ -251,7 +251,7 @@ with torch.no_grad():
     for x, _, idx_grid in grid_loader:
         x = x.to(device)
         qoi_grid[idx_grid] = model(x).squeeze().cpu()[..., idx_qoi[-2], idx_qoi[-1]]
-torch.save({'qoi_grid': qoi_grid}, savepath + 'qoi_grid' + obj_suffix_og)
+torch.save({'qoi_grid': qoi_grid}, savepath + 'qoi_grid' + obj_suffix)
 
 ################################################################
 #
@@ -278,19 +278,19 @@ if FLAG_save_plots:
     plt.xlabel(r'Epoch')
     plt.ylabel(r'Error')
     plt.legend(["Train", "Test"])
-    plt.savefig(plot_folder + "epochs" + obj_suffix_og[:-2] + "pdf", format='pdf')
+    plt.savefig(plot_folder + "epochs" + obj_suffix[:-2] + "pdf", format='pdf')
     
     # Make 2D QoI grid plot
     grid = torch.load(data_prefix_eval + '2d_qoi_plot/' + 'params.pt')['params']
-    grid = grid.reshape(s_outputspace[-2], s_outputspace[-1], -1)
+    grid = grid.reshape(s_outputtest[-2], s_outputtest[-1], -1)
     plt.close()
     plt.contourf(grid[...,-2], grid[...,-1],\
-                  qoi_grid.reshape(s_outputspace[-2], s_outputspace[-1]), cmap=mpl.cm.viridis)
+                  qoi_grid.reshape(s_outputtest), cmap=mpl.cm.viridis)
     plt.title(r'FNO $(N=%d, d_{\mathrm{tr}}=%d, \sigma=0)$' % (N_train, int(d_str)))
     plt.xlabel(r'$\xi_1$')
     plt.ylabel(r'$\xi_2$')
     plt.colorbar(label=r'QoI')
-    plt.savefig(plot_folder + 'qoi_grid' + obj_suffix_og[:-2] + 'pdf', format='pdf')
+    plt.savefig(plot_folder + 'qoi_grid' + obj_suffix[:-2] + 'pdf', format='pdf')
     
     # Begin three errors plots
     idx_worst = torch.argmax(errors_test).item()
@@ -298,9 +298,7 @@ if FLAG_save_plots:
     idx_best = torch.argmin(errors_test).item()
     idxs = [idx_worst, idx_median, idx_best]
     names = ["worst", "median", "best"]
-    extent = (0, 1, 0, 1)
-    interpolation = "spline16"
-    fraction = 0.046#0.046
+    fraction = 0.046
     pad = 0.01
     XX = torch.linspace(0, 1, y_test.shape[-1])
     (YY, XX) = torch.meshgrid(XX, XX)
@@ -309,36 +307,64 @@ if FLAG_save_plots:
         plot_testsort = test_out[idx,...].squeeze()
         er_testsort = torch.abs(plot_testsort - true_testsort).squeeze()
         
-        
-        
-        
-        
         plt.close()
-        fig, ax = plt.subplots(2,2)
-        fig.set_size_inches(15,15)
+        fig = plt.figure(figsize=(15, 15))
+        grid = ImageGrid(fig, 211,
+                         nrows_ncols=(1,2),
+                         axes_pad=1.5,
+                         share_all=True,
+                         aspect=True,
+                         label_mode="L",
+                         cbar_location="right",
+                         cbar_mode="single",
+                         cbar_size="7%",
+                         cbar_pad=0.2
+                         )
         
-        ax[0,0].contourf(XX, YY, plot_testsort, vmin=0, vmax=15, cmap=mpl.cm.viridis)
-        ax[0,0].set_title('FNO Output', fontsize=14)
-        ax[0,0].axes.xaxis.set_visible(False)
-        ax[0,0].set_ylabel(r'$x_2$')
+        grid[0].contourf(XX, YY, plot_testsort, vmin=0, vmax=15, cmap=mpl.cm.viridis)
+        grid[0].set_title('FNO Output', fontsize=16)
+        grid[0].set_xlabel(r'$x_1$')
+        grid[0].set_ylabel(r'$x_2$')
         
-        ax01 = ax[0,1].contourf(XX, YY, true_testsort, vmin=0, vmax=15, cmap=mpl.cm.viridis)
-        ax[0,1].set_title('True Final State', fontsize=14)
-        ax[0,1].axes.xaxis.set_visible(False)
-        ax[0,1].axes.yaxis.set_visible(False)
-        plt.colorbar(ax01, label=r'State', ax=ax[0,1], fraction=fraction, pad=pad)
+        ax01 = grid[1].contourf(XX, YY, true_testsort, vmin=0, vmax=15, cmap=mpl.cm.viridis)
+        grid[1].set_title('True Final State', fontsize=16)
+        grid[1].set_xlabel(r'$x_1$')
+        cb01 = grid[1].cax.colorbar(ax01)
+        grid[1].cax.toggle_label(True)
+        cb01.set_label(r'State')
         
-        ax[1,0].plot(torch.linspace(0, 1, s_test), x_test[idx, 0, :, 0].squeeze())
-        ax[1,0].grid(visible=True)
-        ax[1,0].set_title('Velocity Input Profile ' + '(' + names[i] + ')', fontsize=14)
-        ax[1,0].set_xlabel(r'$x_1$')
-        ax[1,0].set_ylabel(r'$v_1(x_1, 0; \xi)$')
+        grid = ImageGrid(fig, 223,
+                         nrows_ncols=(1,1),
+                         aspect=False,
+                         label_mode="all"
+                         )
         
-        ax11 = ax[1,1].contourf(XX, YY, er_testsort, cmap=mpl.cm.viridis)
-        ax[1,1].set_title('Pointwise Absolute Error', fontsize=14)
-        ax[1,1].set_xlabel(r'$x_1$')
-        ax[1,1].set_ylabel(r'$x_2$')
-        plt.colorbar(ax11, label=r'Error', ax=ax[1,1], fraction=fraction, pad=pad)
+        grid[0].plot(torch.linspace(0, 1, s_test), x_test[idx, 0, :, 0].squeeze())
+        grid[0].grid(visible=True)
+        grid[0].set_xlim(0,1)
+        grid[0].set_ylim(1,5)
+        grid[0].set_title('Velocity Input Profile ' + '(' + names[i] + ')', fontsize=16)
+        grid[0].set_xlabel(r'$x_1$')
+        grid[0].set_ylabel(r'$v_1(x_1, 0; \xi)$')
+        
+        grid = ImageGrid(fig, 224,
+                         nrows_ncols=(1,1),
+                         aspect=True,
+                         label_mode="all",
+                         cbar_location="right",
+                         cbar_mode="single",
+                         cbar_size="7%",
+                         cbar_pad=0.2
+                         )
+  
+        ax11 = grid[0].imshow(er_testsort, origin="lower", interpolation="spline16",\
+                               extent=(0,1,0,1), cmap=mpl.cm.viridis)
+        grid[0].set_title('Pointwise Absolute Error', fontsize=16)
+        grid[0].set_xlabel(r'$x_1$')
+        grid[0].set_ylabel(r'$x_2$')
+        cb11 = grid[0].cax.colorbar(ax11)
+        grid[0].cax.toggle_label(True)
+        cb11.set_label(r'Error')
         
         # Save min, median, max error plots (contour)
         plt.savefig(plot_folder + "eval_" + names[i] + obj_suffix[:-2] + "pdf", format='pdf')
