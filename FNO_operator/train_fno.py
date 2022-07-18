@@ -128,6 +128,7 @@ for loop in range(N_MC):
     mc_prefix = 'MC' + str(loop) + '_'
     
     # Shuffle
+    # TODO: append to list each loop to save numpy arrays
     dataset_shuffle_idx = torch.randperm(N_max)
     np.save(savepath + mc_prefix + 'idx_shuffle' + obj_suffix, dataset_shuffle_idx.numpy())
     x_train = x_train_all[dataset_shuffle_idx, ...]
@@ -200,6 +201,7 @@ for loop in range(N_MC):
         errors[ep,0] = train_loss
         errors[ep,1] = test_loss
     
+        # TODO: update to a {} state_dict_all dictionary each loop: key='model' + loop; dict.update({key: val})
         if FLAG_save_model:
             torch.save(model.state_dict(), savepath + mc_prefix + 'model' + obj_suffix[:-3] + 'pt')
     
