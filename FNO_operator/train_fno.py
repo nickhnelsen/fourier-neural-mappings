@@ -298,7 +298,7 @@ if FLAG_save_plots:
     plt.close()
     plt.contourf(grid[...,-2], grid[...,-1],\
                   qoi_grid.reshape(s_outputtest), cmap=mpl.cm.viridis)
-    fontdict = {'fontsize' : 18}
+    fontdict = {'fontsize' : 16}
     if sigma in [0, 4, 8]:
         plt.title(r'FNO $(N=%d, d_{\mathrm{tr}}=%d, \sigma=%d)$' % (N_train, int(d_str), stdev), fontdict=fontdict)
     elif sigma in [2, 6]:
@@ -339,12 +339,12 @@ if FLAG_save_plots:
                          )
         
         grid[0].contourf(XX, YY, plot_testsort, vmin=0, vmax=15, cmap=mpl.cm.viridis)
-        grid[0].set_title('FNO Output', fontsize=16)
+        grid[0].set_title('FNO Output')
         grid[0].set_xlabel(r'$x_1$')
         grid[0].set_ylabel(r'$x_2$')
         
         ax01 = grid[1].contourf(XX, YY, true_testsort, vmin=0, vmax=15, cmap=mpl.cm.viridis)
-        grid[1].set_title('True Final State', fontsize=16)
+        grid[1].set_title('True Final State')
         grid[1].set_xlabel(r'$x_1$')
         grid[1].axes.yaxis.set_visible(False)
         cb01 = grid[1].cax.colorbar(ax01)
@@ -361,7 +361,7 @@ if FLAG_save_plots:
         grid[0].grid(visible=True)
         grid[0].set_xlim(0,1)
         grid[0].set_ylim(1,5)
-        grid[0].set_title('Velocity Input Profile ' + '(' + names[i] + ')', fontsize=16)
+        grid[0].set_title('Velocity Input Profile ' + '(' + names[i] + ')')
         grid[0].set_xlabel(r'$x_1$')
         grid[0].set_ylabel(r'$v_1(x_1, 0; \xi)$')
         
@@ -377,7 +377,7 @@ if FLAG_save_plots:
   
         ax11 = grid[0].imshow(er_testsort, origin="lower", interpolation="spline16",\
                                extent=(0,1,0,1), cmap=mpl.cm.viridis)
-        grid[0].set_title('Pointwise Absolute Error', fontsize=16)
+        grid[0].set_title('Pointwise Absolute Error')
         grid[0].set_xlabel(r'$x_1$')
         grid[0].set_ylabel(r'$x_2$')
         cb11 = grid[0].cax.colorbar(ax11)
