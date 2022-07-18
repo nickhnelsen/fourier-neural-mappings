@@ -22,9 +22,6 @@ N_train = int(sys.argv[3])  # training sample size
 d_str = sys.argv[4]         # KLE dimension of training inputs (d = 1, 2, 5, 10, 15, 20, or 1000)
 sigma = int(sys.argv[5])    # index between 0 and 8 that defines the noise standard deviation
 
-# Number of independent Monte Carlo loops over training trials
-N_MC = 5
-
 # TODO: remove local paths once it runs on HPC without errors
 # File I/O
 data_prefix = '/media/nnelsen/SharedNHN/documents/datasets/Sandia/raise/training/'      # local
@@ -33,6 +30,9 @@ data_prefix_eval = '/media/nnelsen/SharedNHN/documents/datasets/Sandia/raise/val
 # data_prefix_eval = '/groups/astuart/nnelsen/data/raise/validation/'                            # HPC
 FLAG_save_model = True
 FLAG_save_plots = True
+
+# Number of independent Monte Carlo loops over training trials
+N_MC = 2
 
 # Sample size  
 N_test = 100        # number of validation samples to monitor during training
@@ -62,7 +62,6 @@ scheduler_gamma = 0.5
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print("Device is", device)
 
-# TODO: Non-looped quantities
 # File IO
 obj_suffix = '_n' + str(N_train) + '_d' + d_str + '_s' + str(sigma) + '.npy'
 data_folder = data_prefix + data_suffix + d_str + 'd/'
@@ -70,12 +69,12 @@ savepath = './results/' + save_prefix + data_suffix
 os.makedirs(savepath, exist_ok=True)
 
 # Load training data
-y_train = torch.load(data_folder + 'velocity.pt')['velocity'][:,::sub_in]
-N_max, s = y_train.shape
+y_train_all = torch.load(data_folder + 'velocity.pt')['velocity'][:,::sub_in]
+N_max, s = y_train_all.shape
 assert max(N_train, N_test) <= N_max
-x_train = torch.zeros(N_max, 2, s)
-x_train[:, 0, :] = y_train
-y_train = torch.load(data_folder + 'state.pt')['state'][:,::sub_out,::sub_out,-1] # final time state only
+x_train_all = torch.zeros(N_max, 2, s)
+x_train_all[:, 0, :] = y_train_all
+y_train_all = torch.load(data_folder + 'state.pt')['state'][:,::sub_out,::sub_out,-1] # final time state only
 
 # Noise
 stdevs = torch.arange(0.0, 2.01, 0.25)
@@ -88,10 +87,42 @@ loss_f = LpLoss(size_average=False)
 # Evaluation objects
 loss_vec = LpLoss(size_average=False, reduction=False) # relative L^2 error (not summed)
 loss_abs = LppLoss(size_average=False, reduction=True) # absolute squared L^2 error
+
+# File IO evaluation
+if d_str == '1000':
+    d_test_str = '2'    # test on d=2 case to show resolution-invariance
+else:
+    d_test_str = d_str
+data_folder_eval = data_prefix_eval + d_test_str + 'd_torch/'
+obj_suffix_eval = '_TESTd' + d_test_str + obj_suffix
+
+# Load evaluation
+y_eval = torch.load(data_folder_eval + 'velocity.pt')['velocity'][:,::sub_in]
+N_eval_max, s_eval = y_eval.shape
+x_eval = torch.zeros(N_eval_max, 2, s_eval)
+x_eval[:, 0, :] = y_eval
+y_eval = torch.load(data_folder_eval + 'state.pt')['state'][:,::sub_out,::sub_out,-1]
+qoi_eval = torch.load(data_folder_eval + 'qoi.pt')['qoi']
+
+# Process evaluation
+s_outputtest = y_eval.shape[-2:]
+idx_qoi = torch.div(torch.tensor(s_outputtest), 2, rounding_mode="floor")
+x_eval = x_eval.unsqueeze(-1).repeat(1, 1, 1, s_eval) # velocity is constant in y=x_2 direction
+eval_loader = DataLoader(TensorDatasetID(x_eval, y_eval), batch_size=batch_size, shuffle=False)
+
+# TODO: remove for public version of code
+# Evaluate trained model on 2D parameter grid and save result to .pt file
+x_tmp = torch.load(data_prefix_eval + '2d_qoi_plot/' + 'velocity.pt')['velocity'][:,::sub_in]
+N_grid, s_grid = x_tmp.shape
+x_grid = torch.zeros(N_grid, 2, s_grid)
+x_grid[:, 0, :] = x_tmp
+del x_tmp
+x_grid = x_grid.unsqueeze(-1).repeat(1, 1, 1, s_grid) # velocity is constant in y=x_2 direction
+grid_loader = DataLoader(TensorDatasetID(x_grid, 0*x_grid), batch_size=batch_size, shuffle=False)
         
 # Begin simple MC loops
 for loop in range(N_MC):
-    print('Beginning MC loop %d/%d' % (loop + 1, N_MC))
+    print('######### Beginning MC loop %d/%d' % (loop + 1, N_MC))
 
     # File IO
     mc_prefix = 'MC' + str(loop) + '_'
@@ -99,8 +130,8 @@ for loop in range(N_MC):
     # Shuffle
     dataset_shuffle_idx = torch.randperm(N_max)
     np.save(savepath + mc_prefix + 'idx_shuffle' + obj_suffix, dataset_shuffle_idx.numpy())
-    x_train = x_train[dataset_shuffle_idx, ...]
-    y_train = y_train[dataset_shuffle_idx, ...]
+    x_train = x_train_all[dataset_shuffle_idx, ...]
+    y_train = y_train_all[dataset_shuffle_idx, ...]
     
     # Extract
     x_test = x_train[-N_test:,...].unsqueeze(-1).repeat(1, 1, 1, s) # velocity is constant in y=x_2 direction
@@ -183,40 +214,18 @@ for loop in range(N_MC):
     #
     # evaluation
     #
-    ################################################################
-    # File IO
-    if d_str == '1000':
-        d_test_str = '2'    # test on d=2 case to show resolution-invariance
-    else:
-        d_test_str = d_str
-    data_folder = data_prefix_eval + d_test_str + 'd_torch/'
-    obj_suffix_eval = '_TESTd' + d_test_str + obj_suffix
-    
-    # Load
-    y_test = torch.load(data_folder + 'velocity.pt')['velocity'][:,::sub_in]
-    N_test_max, s_test = y_test.shape
-    x_test = torch.zeros(N_test_max, 2, s_test)
-    x_test[:, 0, :] = y_test
-    y_test = torch.load(data_folder + 'state.pt')['state'][:,::sub_out,::sub_out,-1] # final time state only
-    qoi_test = torch.load(data_folder + 'qoi.pt')['qoi']
-    
-    # Process
-    s_outputtest = y_test.shape[-2:]
-    x_test = x_test.unsqueeze(-1).repeat(1, 1, 1, s_test) # velocity is constant in y=x_2 direction
-    test_loader = DataLoader(TensorDatasetID(x_test, y_test), batch_size=batch_size, shuffle=False)
-    
+    ################################################################    
     # Evaluate
     model.eval()
     t1 = default_timer()
     er_test_loss = 0.0
     num = 0.0
     den = 0.0
-    test_out = torch.zeros(y_test.shape)
-    qoi_out = torch.zeros(N_test_max)
-    idx_qoi = torch.div(torch.tensor(s_outputtest), 2, rounding_mode="floor")
-    errors_test = torch.zeros(y_test.shape[0])
+    state_out = torch.zeros(y_eval.shape)
+    qoi_out = torch.zeros(N_eval_max)
+    errors_test = torch.zeros(y_eval.shape[0])
     with torch.no_grad():
-        for x, y, idx_test in test_loader:
+        for x, y, idx_test in eval_loader:
             x, y = x.to(device), y.to(device)
     
             out = model(x)
@@ -228,14 +237,14 @@ for loop in range(N_MC):
             errors_test[idx_test] = loss_vec(out, y).cpu()
             
             out = out.squeeze().cpu()
-            test_out[idx_test, ...] = out
+            state_out[idx_test, ...] = out
             qoi_out[idx_test] = out[..., idx_qoi[-2], idx_qoi[-1]]
     
-    er_test_loss /= N_test_max
+    er_test_loss /= N_eval_max
     er_test_bochner = (num/den)**(0.5)
-    er_test_qoi = validate(qoi_test, qoi_out)
+    er_test_qoi = validate(qoi_eval, qoi_out)
     t2 = default_timer()
-    print("Time to evaluate", N_test_max, "samples (sec):", t2-t1)
+    print("Time to evaluate", N_eval_max, "samples (sec):", t2-t1)
     print("Average relative L2 test:", er_test_loss, "Relative Bochner L2 test:", er_test_bochner)
     print("Relative L2 QoI test error:", er_test_qoi)
     
@@ -246,13 +255,6 @@ for loop in range(N_MC):
     
     # TODO: remove for public version of code
     # Evaluate trained model on 2D parameter grid and save result to .pt file
-    x_tmp = torch.load(data_prefix_eval + '2d_qoi_plot/' + 'velocity.pt')['velocity'][:,::sub_in]
-    N_grid, s_grid = x_tmp.shape
-    x_grid = torch.zeros(N_grid, 2, s_grid)
-    x_grid[:, 0, :] = x_tmp
-    del x_tmp
-    x_grid = x_grid.unsqueeze(-1).repeat(1, 1, 1, s_grid) # velocity is constant in y=x_2 direction
-    grid_loader = DataLoader(TensorDatasetID(x_grid, 0*x_grid), batch_size=batch_size, shuffle=False)
     qoi_grid = torch.zeros(x_grid.shape[0])
     with torch.no_grad():
         for x, _, idx_grid in grid_loader:
@@ -260,9 +262,11 @@ for loop in range(N_MC):
             qoi_grid[idx_grid] = model(x).squeeze().cpu()[..., idx_qoi[-2], idx_qoi[-1]]
     np.save(savepath + mc_prefix + 'qoi_grid' + obj_suffix, qoi_grid.numpy())
 
+print('######### End of all', N_MC, 'MC loops\n')
+
 ################################################################
 #
-# plotting last MC run
+# plotting last MC trial
 #
 ################################################################
 if FLAG_save_plots:
@@ -294,7 +298,13 @@ if FLAG_save_plots:
     plt.close()
     plt.contourf(grid[...,-2], grid[...,-1],\
                   qoi_grid.reshape(s_outputtest), cmap=mpl.cm.viridis)
-    plt.title(r'FNO $(N=%d, d_{\mathrm{tr}}=%d, \sigma=0)$' % (N_train, int(d_str)))
+    fontdict = {'fontsize' : 18}
+    if sigma in [0, 4, 8]:
+        plt.title(r'FNO $(N=%d, d_{\mathrm{tr}}=%d, \sigma=%d)$' % (N_train, int(d_str), stdev), fontdict=fontdict)
+    elif sigma in [2, 6]:
+        plt.title(r'FNO $(N=%d, d_{\mathrm{tr}}=%d, \sigma=%.1f)$' % (N_train, int(d_str), stdev), fontdict=fontdict)
+    else:
+        plt.title(r'FNO $(N=%d, d_{\mathrm{tr}}=%d, \sigma=%.2f)$' % (N_train, int(d_str), stdev), fontdict=fontdict)
     plt.xlabel(r'$\xi_1$')
     plt.ylabel(r'$\xi_2$')
     plt.colorbar(label=r'QoI')
@@ -307,11 +317,11 @@ if FLAG_save_plots:
     idxs = [idx_worst, idx_median, idx_best]
     np.save(savepath + 'idx_min_med_max' + obj_suffix_eval, np.array(idxs))
     names = ["worst", "median", "best"]
-    XX = torch.linspace(0, 1, y_test.shape[-1])
+    XX = torch.linspace(0, 1, y_eval.shape[-1])
     (YY, XX) = torch.meshgrid(XX, XX)
     for i, idx in enumerate(idxs):
-        true_testsort = y_test[idx,...].squeeze()
-        plot_testsort = test_out[idx,...].squeeze()
+        true_testsort = y_eval[idx,...].squeeze()
+        plot_testsort = state_out[idx,...].squeeze()
         er_testsort = torch.abs(plot_testsort - true_testsort).squeeze()
         
         plt.close()
@@ -347,7 +357,7 @@ if FLAG_save_plots:
                          label_mode="all"
                          )
         
-        grid[0].plot(torch.linspace(0, 1, s_test), x_test[idx, 0, :, 0].squeeze())
+        grid[0].plot(torch.linspace(0, 1, s_eval), x_eval[idx, 0, :, 0].squeeze())
         grid[0].grid(visible=True)
         grid[0].set_xlim(0,1)
         grid[0].set_ylim(1,5)
