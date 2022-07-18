@@ -11,31 +11,26 @@ TensorDatasetID = dataset_with_indices(TensorDataset)
 
 ################################################################
 #
-# %% user configuration
+# user configuration
 #
 ################################################################
-# TODO: add command line
 # Process command line arguments
 print(sys.argv)
-# save_prefix = sys.argv[1]   # e.g., robustness, scalability, efficiency
-# data_suffix = sys.argv[2]   # e.g., 'nu_inf_ell_p05_torch/' or 'nu_1p5_ell_p25_torch/'
-# N_train = int(sys.argv[3])  # training sample size
-# d_str = sys.argv[4]         # KLE dimension of training inputs
-# sigma = int(sys.argv[5])    # index between 0 and 8 that defines the noise standard deviation
+save_prefix = sys.argv[1]   # e.g., 'robustness/', 'scalability/', 'efficiency/'
+data_suffix = sys.argv[2]   # e.g., 'nu_inf_ell_p05_torch/' or 'nu_1p5_ell_p25_torch/'
+N_train = int(sys.argv[3])  # training sample size
+d_str = sys.argv[4]         # KLE dimension of training inputs (d = 1, 2, 5, 10, 15, 20, or 1000)
+sigma = int(sys.argv[5])    # index between 0 and 8 that defines the noise standard deviation
 
-save_prefix = 'robustness_TEST_npy/'    # e.g., robustness, scalability, efficiency
-data_suffix = 'nu_inf_ell_p25_torch/'
-N_train = 100
-d_str = '5'
-sigma = 0                   # index between 0 and 8
+# Number of independent Monte Carlo loops over training trials
+N_MC = 5
 
-# TODO: MC loop
-
+# TODO: remove local paths once it runs on HPC without errors
 # File I/O
-# data_prefix = '/media/nnelsen/SharedNHN/documents/datasets/Sandia/raise/training/'      # local
-data_prefix = '/groups/astuart/nnelsen/data/raise/training/'                            # HPC
-# data_prefix_eval = '/media/nnelsen/SharedNHN/documents/datasets/Sandia/raise/validation/'      # local
-data_prefix_eval = '/groups/astuart/nnelsen/data/raise/validation/'                            # HPC
+data_prefix = '/media/nnelsen/SharedNHN/documents/datasets/Sandia/raise/training/'      # local
+# data_prefix = '/groups/astuart/nnelsen/data/raise/training/'                            # HPC
+data_prefix_eval = '/media/nnelsen/SharedNHN/documents/datasets/Sandia/raise/validation/'      # local
+# data_prefix_eval = '/groups/astuart/nnelsen/data/raise/validation/'                            # HPC
 FLAG_save_model = True
 FLAG_save_plots = True
 
@@ -61,19 +56,20 @@ scheduler_gamma = 0.5
 
 ################################################################
 #
-# %% load and process data
+# load and process data
 #
 ################################################################
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print("Device is", device)
 
+# TODO: Non-looped quantities
 # File IO
 obj_suffix = '_n' + str(N_train) + '_d' + d_str + '_s' + str(sigma) + '.npy'
 data_folder = data_prefix + data_suffix + d_str + 'd/'
 savepath = './results/' + save_prefix + data_suffix
 os.makedirs(savepath, exist_ok=True)
 
-# Load
+# Load training data
 y_train = torch.load(data_folder + 'velocity.pt')['velocity'][:,::sub_in]
 N_max, s = y_train.shape
 assert max(N_train, N_test) <= N_max
@@ -81,182 +77,192 @@ x_train = torch.zeros(N_max, 2, s)
 x_train[:, 0, :] = y_train
 y_train = torch.load(data_folder + 'state.pt')['state'][:,::sub_out,::sub_out,-1] # final time state only
 
-# Shuffle
-dataset_shuffle_idx = torch.randperm(N_max)
-np.save(savepath + 'idx_shuffle' + obj_suffix, dataset_shuffle_idx.numpy())
-x_train = x_train[dataset_shuffle_idx, ...]
-y_train = y_train[dataset_shuffle_idx, ...]
-
-# Extract
-x_test = x_train[-N_test:,...].unsqueeze(-1).repeat(1, 1, 1, s) # velocity is constant in y=x_2 direction
-x_train = x_train[:N_train,...].unsqueeze(-1).repeat(1, 1, 1, s) # velocity is constant in y=x_2 direction
-y_test = y_train[-N_test:,...]
-y_train = y_train[:N_train,...]
-
 # Noise
 stdevs = torch.arange(0.0, 2.01, 0.25)
 if sigma not in [i for i in range(stdevs.shape[0])]:
     raise ValueError("sigma must be an index from 0 to 8")
-elif sigma > 0: # add noise in the output space
-    stdev = stdevs[sigma]
-    y_test = y_test + stdev*torch.randn(y_test.shape)
-    y_train = y_train + stdev*torch.randn(y_train.shape)
-
-train_loader = DataLoader(TensorDataset(x_train, y_train), batch_size=batch_size, shuffle=True)
-test_loader = DataLoader(TensorDataset(x_test, y_test), batch_size=batch_size, shuffle=False)
-
-################################################################
-#
-# %% training
-#
-################################################################
-s_outputspace = tuple(y_train.shape[-2:])   # same output shape as the output dataset
-
-model = FNO2d(modes1, modes2, width, s_outputspace).to(device)
-print("FNO parameter count:", count_params(model))
-
-optimizer = Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
-scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=scheduler_step, gamma=scheduler_gamma)
-
+    
+# Training objects
 loss_f = LpLoss(size_average=False)
 
-errors = torch.zeros((epochs, 2))
-
-t0 = default_timer()
-for ep in range(epochs):
-    t1 = default_timer()
-
-    train_loss = 0.0
-    model.train()
-    for x, y in train_loader:
-        x, y = x.to(device), y.to(device)
-
-        optimizer.zero_grad()
-
-        out = model(x)
-
-        loss = loss_f(out, y)
-        loss.backward()
-
-        optimizer.step()
-
-        train_loss += loss.item()
-
-    model.eval()
-    test_loss = 0.0
-    with torch.no_grad():
-        for x, y in test_loader:
-            x, y = x.to(device), y.to(device)
-
-            out = model(x)
-
-            test_loss += loss_f(out, y).item()
-
-    train_loss /= N_train
-    test_loss /= N_test
-    
-    scheduler.step()
-
-    errors[ep,0] = train_loss
-    errors[ep,1] = test_loss
-
-    if FLAG_save_model:
-        torch.save(model.state_dict(), savepath + 'model' + obj_suffix[:-3] + 'pt')
-
-    t2 = default_timer()
-
-    print("Epoch:", ep, "Train L2:", train_loss, "Test L2:", test_loss, "Epoch time:", t2-t1)
-    np.save(savepath + 'train_errors' + obj_suffix, errors.numpy())
-
-print("Total time elapsed (min):", (default_timer()-t0)/60., "Total epochs trained:", epochs)
-
-################################################################
-#
-# %% evaluation
-#
-################################################################
-# File IO
-if d_str == '1000':
-    d_test_str = '2'    # test on d=2 case to show resolution-invariance
-else:
-    d_test_str = d_str
-data_folder = data_prefix_eval + d_test_str + 'd_torch/'
-obj_suffix_eval = '_TESTd' + d_test_str + obj_suffix
-
-# Load
-y_test = torch.load(data_folder + 'velocity.pt')['velocity'][:,::sub_in]
-N_test_max, s_test = y_test.shape
-x_test = torch.zeros(N_test_max, 2, s_test)
-x_test[:, 0, :] = y_test
-y_test = torch.load(data_folder + 'state.pt')['state'][:,::sub_out,::sub_out,-1] # final time state only
-qoi_test = torch.load(data_folder + 'qoi.pt')['qoi']
-
-# Process
-s_outputtest = y_test.shape[-2:]
-x_test = x_test.unsqueeze(-1).repeat(1, 1, 1, s_test) # velocity is constant in y=x_2 direction
-test_loader = DataLoader(TensorDatasetID(x_test, y_test), batch_size=batch_size, shuffle=False)
-
-# Evaluate
-model.eval()
+# Evaluation objects
 loss_vec = LpLoss(size_average=False, reduction=False) # relative L^2 error (not summed)
 loss_abs = LppLoss(size_average=False, reduction=True) # absolute squared L^2 error
-
-t1 = default_timer()
-er_test_loss = 0.0
-num = 0.0
-den = 0.0
-test_out = torch.zeros(y_test.shape)
-qoi_out = torch.zeros(N_test_max)
-idx_qoi = torch.div(torch.tensor(s_outputtest), 2, rounding_mode="floor")
-errors_test = torch.zeros(y_test.shape[0])
-with torch.no_grad():
-    for x, y, idx_test in test_loader:
-        x, y = x.to(device), y.to(device)
-
-        out = model(x)
-
-        er_test_loss += loss_f(out, y).item()
-        num += loss_abs.abs(out, y).item()
-        den += loss_abs.abs(y, 0*y).item()
         
-        errors_test[idx_test] = loss_vec(out, y).cpu()
+# Begin simple MC loops
+for loop in range(N_MC):
+    print('Beginning MC loop %d/%d' % (loop + 1, N_MC))
+
+    # File IO
+    mc_prefix = 'MC' + str(loop) + '_'
+    
+    # Shuffle
+    dataset_shuffle_idx = torch.randperm(N_max)
+    np.save(savepath + mc_prefix + 'idx_shuffle' + obj_suffix, dataset_shuffle_idx.numpy())
+    x_train = x_train[dataset_shuffle_idx, ...]
+    y_train = y_train[dataset_shuffle_idx, ...]
+    
+    # Extract
+    x_test = x_train[-N_test:,...].unsqueeze(-1).repeat(1, 1, 1, s) # velocity is constant in y=x_2 direction
+    x_train = x_train[:N_train,...].unsqueeze(-1).repeat(1, 1, 1, s)
+    y_test = y_train[-N_test:,...]
+    y_train = y_train[:N_train,...]
+    
+    # Noise
+    if sigma > 0: # add noise in the output space
+        stdev = stdevs[sigma]
+        y_train = y_train + stdev*torch.randn(y_train.shape)
+    
+    train_loader = DataLoader(TensorDataset(x_train, y_train), batch_size=batch_size, shuffle=True)
+    test_loader = DataLoader(TensorDataset(x_test, y_test), batch_size=batch_size, shuffle=False)
+    
+    ################################################################
+    #
+    # training
+    #
+    ################################################################
+    s_outputspace = tuple(y_train.shape[-2:])   # same output shape as the output dataset
+    
+    model = FNO2d(modes1, modes2, width, s_outputspace).to(device)
+    print("FNO parameter count:", count_params(model))
+    
+    optimizer = Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=scheduler_step, gamma=scheduler_gamma)
         
-        out = out.squeeze().cpu()
-        test_out[idx_test, ...] = out
-        qoi_out[idx_test] = out[..., idx_qoi[-2], idx_qoi[-1]]
-
-er_test_loss /= N_test_max
-er_test_bochner = (num/den)**(0.5)
-er_test_qoi = validate(qoi_test, qoi_out)
-t2 = default_timer()
-print("Time to evaluate", N_test_max, "samples (sec):", t2-t1)
-print("Average relative L2 test:", er_test_loss, "Relative Bochner L2 test:", er_test_bochner)
-print("Relative L2 QoI test error:", er_test_qoi)
-
-# Save test errors
-test_errors = np.array([er_test_qoi, er_test_bochner, er_test_loss])
-np.savez(savepath + 'test_errors' + obj_suffix_eval[:-3] + 'npz', qoi_bochner_loss=test_errors,\
-         rel_test_error_list=errors_test.numpy())
-
-# TODO: remove for public version of code
-# Evaluate trained model on 2D parameter grid and save result to .pt file
-x_tmp = torch.load(data_prefix_eval + '2d_qoi_plot/' + 'velocity.pt')['velocity'][:,::sub_in]
-N_grid, s_grid = x_tmp.shape
-x_grid = torch.zeros(N_grid, 2, s_grid)
-x_grid[:, 0, :] = x_tmp
-del x_tmp
-x_grid = x_grid.unsqueeze(-1).repeat(1, 1, 1, s_grid) # velocity is constant in y=x_2 direction
-grid_loader = DataLoader(TensorDatasetID(x_grid, 0*x_grid), batch_size=batch_size, shuffle=False)
-qoi_grid = torch.zeros(x_grid.shape[0])
-with torch.no_grad():
-    for x, _, idx_grid in grid_loader:
-        x = x.to(device)
-        qoi_grid[idx_grid] = model(x).squeeze().cpu()[..., idx_qoi[-2], idx_qoi[-1]]
-np.save(savepath + 'qoi_grid' + obj_suffix, qoi_grid.numpy())
+    errors = torch.zeros((epochs, 2))
+    
+    t0 = default_timer()
+    for ep in range(epochs):
+        t1 = default_timer()
+    
+        train_loss = 0.0
+        model.train()
+        for x, y in train_loader:
+            x, y = x.to(device), y.to(device)
+    
+            optimizer.zero_grad()
+    
+            out = model(x)
+    
+            loss = loss_f(out, y)
+            loss.backward()
+    
+            optimizer.step()
+    
+            train_loss += loss.item()
+    
+        model.eval()
+        test_loss = 0.0
+        with torch.no_grad():
+            for x, y in test_loader:
+                x, y = x.to(device), y.to(device)
+    
+                out = model(x)
+    
+                test_loss += loss_f(out, y).item()
+    
+        train_loss /= N_train
+        test_loss /= N_test
+        
+        scheduler.step()
+    
+        errors[ep,0] = train_loss
+        errors[ep,1] = test_loss
+    
+        if FLAG_save_model:
+            torch.save(model.state_dict(), savepath + mc_prefix + 'model' + obj_suffix[:-3] + 'pt')
+    
+        t2 = default_timer()
+    
+        print("Epoch:", ep, "Train L2:", train_loss, "Test L2:", test_loss, "Epoch time:", t2-t1)
+        np.save(savepath + mc_prefix + 'train_errors' + obj_suffix, errors.numpy())
+    
+    print("Total time elapsed (min):", (default_timer()-t0)/60., "Total epochs trained:", epochs)
+    
+    ################################################################
+    #
+    # evaluation
+    #
+    ################################################################
+    # File IO
+    if d_str == '1000':
+        d_test_str = '2'    # test on d=2 case to show resolution-invariance
+    else:
+        d_test_str = d_str
+    data_folder = data_prefix_eval + d_test_str + 'd_torch/'
+    obj_suffix_eval = '_TESTd' + d_test_str + obj_suffix
+    
+    # Load
+    y_test = torch.load(data_folder + 'velocity.pt')['velocity'][:,::sub_in]
+    N_test_max, s_test = y_test.shape
+    x_test = torch.zeros(N_test_max, 2, s_test)
+    x_test[:, 0, :] = y_test
+    y_test = torch.load(data_folder + 'state.pt')['state'][:,::sub_out,::sub_out,-1] # final time state only
+    qoi_test = torch.load(data_folder + 'qoi.pt')['qoi']
+    
+    # Process
+    s_outputtest = y_test.shape[-2:]
+    x_test = x_test.unsqueeze(-1).repeat(1, 1, 1, s_test) # velocity is constant in y=x_2 direction
+    test_loader = DataLoader(TensorDatasetID(x_test, y_test), batch_size=batch_size, shuffle=False)
+    
+    # Evaluate
+    model.eval()
+    t1 = default_timer()
+    er_test_loss = 0.0
+    num = 0.0
+    den = 0.0
+    test_out = torch.zeros(y_test.shape)
+    qoi_out = torch.zeros(N_test_max)
+    idx_qoi = torch.div(torch.tensor(s_outputtest), 2, rounding_mode="floor")
+    errors_test = torch.zeros(y_test.shape[0])
+    with torch.no_grad():
+        for x, y, idx_test in test_loader:
+            x, y = x.to(device), y.to(device)
+    
+            out = model(x)
+    
+            er_test_loss += loss_f(out, y).item()
+            num += loss_abs.abs(out, y).item()
+            den += loss_abs.abs(y, 0*y).item()
+            
+            errors_test[idx_test] = loss_vec(out, y).cpu()
+            
+            out = out.squeeze().cpu()
+            test_out[idx_test, ...] = out
+            qoi_out[idx_test] = out[..., idx_qoi[-2], idx_qoi[-1]]
+    
+    er_test_loss /= N_test_max
+    er_test_bochner = (num/den)**(0.5)
+    er_test_qoi = validate(qoi_test, qoi_out)
+    t2 = default_timer()
+    print("Time to evaluate", N_test_max, "samples (sec):", t2-t1)
+    print("Average relative L2 test:", er_test_loss, "Relative Bochner L2 test:", er_test_bochner)
+    print("Relative L2 QoI test error:", er_test_qoi)
+    
+    # Save test errors
+    test_errors = np.array([er_test_qoi, er_test_bochner, er_test_loss])
+    np.savez(savepath + mc_prefix + 'test_errors' + obj_suffix_eval[:-3] + 'npz',\
+             qoi_bochner_loss=test_errors, rel_test_error_list=errors_test.numpy())
+    
+    # TODO: remove for public version of code
+    # Evaluate trained model on 2D parameter grid and save result to .pt file
+    x_tmp = torch.load(data_prefix_eval + '2d_qoi_plot/' + 'velocity.pt')['velocity'][:,::sub_in]
+    N_grid, s_grid = x_tmp.shape
+    x_grid = torch.zeros(N_grid, 2, s_grid)
+    x_grid[:, 0, :] = x_tmp
+    del x_tmp
+    x_grid = x_grid.unsqueeze(-1).repeat(1, 1, 1, s_grid) # velocity is constant in y=x_2 direction
+    grid_loader = DataLoader(TensorDatasetID(x_grid, 0*x_grid), batch_size=batch_size, shuffle=False)
+    qoi_grid = torch.zeros(x_grid.shape[0])
+    with torch.no_grad():
+        for x, _, idx_grid in grid_loader:
+            x = x.to(device)
+            qoi_grid[idx_grid] = model(x).squeeze().cpu()[..., idx_qoi[-2], idx_qoi[-1]]
+    np.save(savepath + mc_prefix + 'qoi_grid' + obj_suffix, qoi_grid.numpy())
 
 ################################################################
 #
-# %% plotting
+# plotting last MC run
 #
 ################################################################
 if FLAG_save_plots:
@@ -281,6 +287,7 @@ if FLAG_save_plots:
     plt.legend(["Train", "Test"])
     plt.savefig(plot_folder + "epochs" + obj_suffix[:-3] + "pdf", format='pdf')
     
+    # TODO: remove for public version of code
     # Make 2D QoI grid plot
     grid = torch.load(data_prefix_eval + '2d_qoi_plot/' + 'params.pt')['params']
     grid = grid.reshape(s_outputtest[-2], s_outputtest[-1], -1)
