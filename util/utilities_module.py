@@ -163,7 +163,7 @@ class LpLoss(object):
         num_examples = x.size()[0]
 
         #Assume uniform mesh
-        h = 1.0 / (x.size()[1] - 1.0)
+        h = 1.0 / (x.size()[-1] - 1.0)
 
         all_norms = (h**(self.d/self.p))*torch.norm(x.view(num_examples,-1) - y.view(num_examples,-1), self.p, 1)
 
