@@ -1,11 +1,11 @@
 import torch
 import numpy as np
-import os, sys; sys.path.append(os.path.join('..'))
+import os, sys; sys.path.append(os.path.join('..', 'util'))
 from timeit import default_timer
 
 from models import FNO2d
-from util.Adam import Adam
-from util.utilities_module import LpLoss, LppLoss, count_params, validate, dataset_with_indices
+from Adam import Adam
+from utilities_module import LpLoss, LppLoss, count_params, validate, dataset_with_indices
 from torch.utils.data import TensorDataset, DataLoader
 TensorDatasetID = dataset_with_indices(TensorDataset)
 
@@ -296,7 +296,7 @@ print('######### End of all', N_MC, 'MC loops\n')
 #
 ################################################################
 if FLAG_save_plots:
-    from util.configure_plots import plt, mpl
+    from configure_plots import plt, mpl
     from mpl_toolkits.axes_grid1 import ImageGrid
 
     plt.rcParams['figure.figsize'] = [6.0, 4.0]
