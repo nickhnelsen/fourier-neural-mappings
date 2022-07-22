@@ -21,10 +21,8 @@ N_train = int(sys.argv[3])  # training sample size used in model to load
 d_str = sys.argv[4]         # KLE dimension of model to load (d = 1, 2, 5, 10, 15, 20, or 1000)
 sigma = int(sys.argv[5])    # index between 0 and 8 that defines the noise standard deviation
 
-# TODO: remove local paths once it runs on HPC without errors
 # File I/O
-data_prefix_eval = '/media/nnelsen/SharedNHN/documents/datasets/Sandia/raise/validation/'      # local
-# data_prefix_eval = '/groups/astuart/nnelsen/data/raise/validation/'                            # HPC
+data_prefix_eval = '/groups/astuart/nnelsen/data/raise/validation/'
 FLAG_save_plots = True
 
 # Resolution subsampling
