@@ -30,6 +30,7 @@ data_prefix_eval = '/media/nnelsen/SharedNHN/documents/datasets/Sandia/raise/val
 # data_prefix_eval = '/groups/astuart/nnelsen/data/raise/validation/'                            # HPC
 FLAG_save_model = True
 FLAG_save_plots = True
+SAVE_AFTER = 10
 
 # Number of independent Monte Carlo loops over training trials
 N_MC = 2
@@ -106,7 +107,7 @@ qoi_eval = torch.load(data_folder_eval + 'qoi.pt')['qoi']
 
 # Process evaluation
 s_outputtest = y_eval.shape[-2:]
-idx_qoi = torch.div(torch.tensor(s_outputtest), 2, rounding_mode="floor")
+idx_qoi = torch.div(torch.tensor(s_outputtest), 2, rounding_mode="floor") # center of grid
 x_eval = x_eval.unsqueeze(-1).repeat(1, 1, 1, s_eval) # velocity is constant in y=x_2 direction
 eval_loader = DataLoader(TensorDatasetID(x_eval, y_eval), batch_size=batch_size, shuffle=False)
 
@@ -119,18 +120,28 @@ x_grid[:, 0, :] = x_tmp
 del x_tmp
 x_grid = x_grid.unsqueeze(-1).repeat(1, 1, 1, s_grid) # velocity is constant in y=x_2 direction
 grid_loader = DataLoader(TensorDatasetID(x_grid, 0*x_grid), batch_size=batch_size, shuffle=False)
-        
+
+# Initialize output files
+idx_shuffle_all = []
+model_dict = {}
+optimizer_dict = {}
+errors_all = []
+test_errors_all = []
+errors_test_list= []
+qoi_grid_all = []
+
 # Begin simple MC loops
 for loop in range(N_MC):
     print('######### Beginning MC loop %d/%d' % (loop + 1, N_MC))
 
     # File IO
-    mc_prefix = 'MC' + str(loop) + '_'
+    keym = 'model' + str(loop)
+    keyo = 'optimizer' + str(loop)
     
     # Shuffle
-    # TODO: append to list each loop to save numpy arrays
     dataset_shuffle_idx = torch.randperm(N_max)
-    np.save(savepath + mc_prefix + 'idx_shuffle' + obj_suffix, dataset_shuffle_idx.numpy())
+    idx_shuffle_all.append(dataset_shuffle_idx.numpy())
+    np.save(savepath + 'idx_shuffle_all' + obj_suffix, np.asarray(idx_shuffle_all))
     x_train = x_train_all[dataset_shuffle_idx, ...]
     y_train = y_train_all[dataset_shuffle_idx, ...]
     
@@ -162,6 +173,7 @@ for loop in range(N_MC):
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=scheduler_step, gamma=scheduler_gamma)
         
     errors = torch.zeros((epochs, 2))
+    errors_all.append(errors.numpy())
     
     t0 = default_timer()
     for ep in range(epochs):
@@ -201,15 +213,24 @@ for loop in range(N_MC):
         errors[ep,0] = train_loss
         errors[ep,1] = test_loss
     
-        # TODO: update to a {} state_dict_all dictionary each loop: key='model' + loop; dict.update({key: val})
         if FLAG_save_model:
-            torch.save(model.state_dict(), savepath + mc_prefix + 'model' + obj_suffix[:-3] + 'pt')
+            if ep % SAVE_AFTER == 0:
+                model_dict.update({keym: model.state_dict()})
+                optimizer_dict.update({keyo: optimizer.state_dict()})
+                torch.save(model_dict, savepath + 'model_dict' + obj_suffix[:-3] + 'pt')
+                torch.save(optimizer_dict, savepath + 'optimizer_dict' + obj_suffix[:-3] + 'pt')
     
         t2 = default_timer()
     
         print("Epoch:", ep, "Train L2:", train_loss, "Test L2:", test_loss, "Epoch time:", t2-t1)
-        np.save(savepath + mc_prefix + 'train_errors' + obj_suffix, errors.numpy())
+        errors_all[loop] = errors.numpy()
+        np.save(savepath + 'train_errors_all' + obj_suffix, np.asarray(errors_all))
     
+    # End training loop
+    model_dict.update({keym: model.state_dict()})
+    optimizer_dict.update({keyo: optimizer.state_dict()})
+    torch.save(model_dict, savepath + 'model_dict' + obj_suffix[:-3] + 'pt')
+    torch.save(optimizer_dict, savepath + 'optimizer_dict' + obj_suffix[:-3] + 'pt')
     print("Total time elapsed (min):", (default_timer()-t0)/60., "Total epochs trained:", epochs)
     
     ################################################################
@@ -251,9 +272,11 @@ for loop in range(N_MC):
     print("Relative L2 QoI test error:", er_test_qoi)
     
     # Save test errors
-    test_errors = np.array([er_test_qoi, er_test_bochner, er_test_loss])
-    np.savez(savepath + mc_prefix + 'test_errors' + obj_suffix_eval[:-3] + 'npz',\
-             qoi_bochner_loss=test_errors, rel_test_error_list=errors_test.numpy())
+    test_errors_all.append(np.asarray([er_test_qoi, er_test_bochner, er_test_loss]))
+    errors_test_list.append(errors_test.numpy())
+    np.savez(savepath + 'test_errors_all' + obj_suffix_eval[:-3] + 'npz',\
+             qoi_bochner_loss=np.asarray(test_errors_all),\
+                 rel_test_error_list=np.asarray(errors_test_list))
     
     # TODO: remove for public version of code
     # Evaluate trained model on 2D parameter grid and save result to .pt file
@@ -262,7 +285,8 @@ for loop in range(N_MC):
         for x, _, idx_grid in grid_loader:
             x = x.to(device)
             qoi_grid[idx_grid] = model(x).squeeze().cpu()[..., idx_qoi[-2], idx_qoi[-1]]
-    np.save(savepath + mc_prefix + 'qoi_grid' + obj_suffix, qoi_grid.numpy())
+    qoi_grid_all.append(qoi_grid.numpy())
+    np.save(savepath + 'qoi_grid_all' + obj_suffix, np.asarray(qoi_grid_all))
 
 print('######### End of all', N_MC, 'MC loops\n')
 
@@ -317,7 +341,7 @@ if FLAG_save_plots:
     idx_median = torch.argsort(errors_test)[errors_test.shape[0]//2].item()
     idx_best = torch.argmin(errors_test).item()
     idxs = [idx_worst, idx_median, idx_best]
-    np.save(savepath + 'idx_min_med_max' + obj_suffix_eval, np.array(idxs))
+    np.save(savepath + 'idx_min_med_max' + obj_suffix_eval, np.asarray(idxs))
     names = ["worst", "median", "best"]
     XX = torch.linspace(0, 1, y_eval.shape[-1])
     (YY, XX) = torch.meshgrid(XX, XX)
