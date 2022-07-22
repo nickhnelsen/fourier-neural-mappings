@@ -149,8 +149,8 @@ for loop in range(N_MC):
     y_train = y_train[:N_train,...]
     
     # Noise
+    stdev = stdevs[sigma]
     if sigma > 0: # add noise in the output space
-        stdev = stdevs[sigma]
         y_train = y_train + stdev*torch.randn(y_train.shape)
     
     train_loader = DataLoader(TensorDataset(x_train, y_train), batch_size=batch_size, shuffle=True)
