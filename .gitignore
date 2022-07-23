@@ -143,11 +143,12 @@ z_*
 **/z_*/
 **/__*/
 *.out
+# *.pt
 
 # FNF
 **/R-*
 **/errors.pt
-**/model*
+**/model_*
 **/job_*
 **/figures
 **/results
