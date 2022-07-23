@@ -133,7 +133,7 @@ dmypy.json
 *.png
 *.jpeg
 
-# NHN
+# USER
 desktop.ini
 *.npy
 *.gif
@@ -142,9 +142,13 @@ desktop.ini
 z_*
 **/z_*/
 **/__*/
+*.out
+# *.pt
 
-# FNO
+# FNF
 **/R-*
 **/errors.pt
-**/model.pt
+**/model_*
 **/job_*
+**/figures
+**/results

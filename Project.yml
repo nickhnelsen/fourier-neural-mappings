@@ -1,0 +1,15 @@
+name: fno
+channels:
+  - pytorch
+  - conda-forge
+  - defaults
+dependencies:
+  - numpy
+  - h5py
+  - python=3.9
+  - scipy
+  - hdf5
+  - matplotlib
+  - cudatoolkit=10.2
+  - pytorch==1.9.1
+  - hdf5storage

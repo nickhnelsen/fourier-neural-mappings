@@ -17,6 +17,56 @@ import hdf5storage
 #
 #################################################
 
+def resize_rfft(ar, s):
+    """
+    Truncates or zero pads the highest frequencies of ``ar'' such that torch.fft.irfft(ar, n=s) is either an interpolation to a finer grid or a subsampling to a coarser grid.
+    Args
+        ar: (..., N) tensor, must satisfy real conjugate symmetry (not checked)
+        s: (int), desired irfft output dimension >= 1
+    Output
+        out: (..., s//2 + 1) tensor
+    """
+    N = ar.shape[-1]
+    s = s//2 + 1 if s >=1 else s//2
+    if s >= N: # zero pad or leave alone
+        out = torch.zeros(list(ar.shape[:-1]) + [s - N], dtype=torch.cfloat, device=ar.device)
+        out = torch.cat((ar[..., :N], out), dim=-1)
+    elif s >= 1: # truncate
+        out = ar[..., :s]
+    else: # edge case
+        raise ValueError("s must be greater than or equal to 1.")
+
+    return out
+
+
+def resize_fft(ar, s):
+    """
+    Truncates or zero pads the highest frequencies of ``ar'' such that torch.fft.ifft(ar, n=s) is either an interpolation to a finer grid or a subsampling to a coarser grid.
+    Reference: https://github.com/numpy/numpy/pull/7593
+    Args
+        ar: (..., N) tensor
+        s: (int), desired ifft output dimension >= 1
+    Output
+        out: (..., s) tensor
+    """
+    N = ar.shape[-1]
+    if s >= N: # zero pad or leave alone
+        out = torch.zeros(list(ar.shape[:-1]) + [s - N], dtype=torch.cfloat, device=ar.device)
+        out = torch.cat((ar[..., :N//2], out, ar[..., N//2:]), dim=-1)
+    elif s >= 2: # truncate modes
+        if s % 2: # odd
+            out = torch.cat((ar[..., :s//2 + 1], ar[..., -s//2 + 1:]), dim=-1)
+        else: # even
+            out = torch.cat((ar[..., :s//2], ar[..., -s//2:]), dim=-1)
+    else: # edge case s = 1
+        if s < 1:
+            raise ValueError("s must be greater than or equal to 1.")
+        else:
+            out = ar[..., 0:1]
+
+    return out
+
+
 def to_torch(x, to_float=True):
     if to_float:
         if np.iscomplexobj(x):
@@ -24,23 +74,23 @@ def to_torch(x, to_float=True):
         else:
             x = x.astype(np.float32)
     return torch.from_numpy(x)
-    
+
 
 def validate(f, fhat):
     '''
     Helper function to compute relative L^2 error of approximations.
     Takes care of different array shape interpretations in numpy.
-    
+
     INPUTS:
             f : array of high-fidelity function values
          fhat : array of approximation values
-        
+
     OUTPUTS:
         error : float, relative error
     '''
     f, fhat = np.asarray(f).flatten(), np.asarray(fhat).flatten()
     return np.linalg.norm(f-fhat) / np.linalg.norm(f)
-    
+
 
 # Reference: https://discuss.pytorch.org/t/how-to-retrieve-the-sample-indices-of-a-mini-batch/7948/19
 def dataset_with_indices(cls):
@@ -79,7 +129,7 @@ class MatReader(object):
         except:
             self.data = hdf5storage.loadmat(self.file_path, variable_names=self.variable_names)
             self.old_mat = False
-                
+
     def load_file(self, file_path):
         self.file_path = file_path
         self._load_file()
@@ -163,7 +213,7 @@ class LpLoss(object):
         num_examples = x.size()[0]
 
         #Assume uniform mesh
-        h = 1.0 / (x.size()[1] - 1.0)
+        h = 1.0 / (x.size()[-1] - 1.0)
 
         all_norms = (h**(self.d/self.p))*torch.norm(x.view(num_examples,-1) - y.view(num_examples,-1), self.p, 1)
 
@@ -210,7 +260,7 @@ class LppLoss(object):
         num_examples = x.size()[0]
 
         #Assume uniform mesh
-        h = 1.0 / (x.size()[1] - 1.0)
+        h = 1.0 / (x.size()[-1] - 1.0)
 
         all_norms = (h**(self.d))*(torch.norm(x.view(num_examples,-1) - y.view(num_examples,-1), self.p, 1)**(self.p))
 
@@ -238,12 +288,12 @@ class LppLoss(object):
 
     def __call__(self, x, y):
         return self.rel(x, y)
-    
+
 
 # print the number of parameters
 def count_params(model):
     c = 0
     for p in list(model.parameters()):
-        c += reduce(operator.mul, 
+        c += reduce(operator.mul,
                     list(p.size()+(2,) if p.is_complex() else p.size()))
     return c
