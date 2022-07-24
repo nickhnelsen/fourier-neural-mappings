@@ -46,7 +46,7 @@ class SpectralConv2d(nn.Module):
 
     def forward(self, x, s=None):
         """
-        Input shape (of x):     (batch, channels=2, nx_in, ny_in)
+        Input shape (of x):     (batch, channels, nx_in, ny_in)
         s:                      (list or tuple, length 2): desired spatial resolution (s,s) in output space
         """
         # Original resolution
