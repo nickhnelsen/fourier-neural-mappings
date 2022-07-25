@@ -19,29 +19,33 @@ def resize_rfft2(ar, s):
     out = resize_rfft(ar, s2) # last axis (rfft)
     return resize_fft(out.permute(0, 1, 3, 2), s1).permute(0, 1, 3, 2) # second to last axis (fft)
 
+# TODO: absorb complex conjugate into parametrization of weights
 class LinearFunctionals2d(nn.Module):
-    def __init__(self, in_channels, modes1, modes2):
+    def __init__(self, out_channels, modes1, modes2):
         """
         Fourier neural functionals layer for functions over the 2D torus
+        out_channels (int): number of linear functionals to extract from each individual input function
         """
         super(LinearFunctionals2d, self).__init__()
 
-        self.in_channels = in_channels
+        self.out_channels = out_channels
     
         # Number of Fourier modes to multiply, at most floor(N/2) + 1
         self.modes1 = modes1 
         self.modes2 = modes2
     
-        self.scale = 1. / in_channels
-        self.weights = nn.Parameter(self.scale * torch.rand(in_channels, 2*self.modes1, self.modes2 + 1, dtype=torch.cfloat))
+        self.scale = 1. / out_channels
+        self.weights = nn.Parameter(self.scale * torch.rand(out_channels, 2*self.modes1, self.modes2 + 1, dtype=torch.cfloat))
     
+    # TODO: fix i/o logic
     def compl_mul2d_pw(self, input_tensor, weights):
         """
         Complex pointwise multiplication:
-        (batch, in_channel, nx, ny), (in_channel, nx, ny) -> (batch, in_channel, nx, ny)
+        (batch, in_channel, nx, ny), (out_channel, nx, ny) -> (batch, in_channel, out_channel, nx, ny)
         """
-        return torch.einsum("bixy,ixy->bixy", input_tensor, weights)
+        return torch.einsum("bixy,oxy->bioxy", input_tensor, weights)
 
+    # TODO: fix output shape to depend on d_i and d_o
     def forward(self, x):
         """
         Input shape (of x):     (batch, channels, nx_in, ny_in)
@@ -113,6 +117,7 @@ class SpectralConv2d(nn.Module):
 
         return x
 
+# TODO: remark that model A and B are cheaper versions of fully general FNF using matrix-valued functional
 class FNF2d_A(nn.Module):
     def __init__(self, modes1, modes2, width,
                  width_final=128,
@@ -206,6 +211,7 @@ class FNF2d_A(nn.Module):
         gridy = gridy.reshape(1, 1, size_y, 1).repeat([batchsize, size_x, 1, 1])
         return torch.cat((gridx, gridy), dim=-1).to(device)
 
+# TODO: fix extraction of functionals from single function
 class FNF2d_B(nn.Module):
     def __init__(self, modes1, modes2, width,
                  width_final=128,
