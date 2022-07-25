@@ -118,7 +118,7 @@ class SpectralConv2d(nn.Module):
         return x
 
 # TODO: remark that model A and B are cheaper versions of fully general FNF using matrix-valued functional
-class FNF2d_A(nn.Module):
+class FNF2d_diagonal(nn.Module):
     def __init__(self, modes1, modes2, width,
                  width_final=128,
                  padding=8,
@@ -133,7 +133,7 @@ class FNF2d_A(nn.Module):
         d_in            (int): number of input channels (here 2 velocity inputs + 2 space variables)
         d_out           (int): finite number of desired outputs (number of functionals)
         """
-        super(FNF2d_A, self).__init__()
+        super(FNF2d_diagonal, self).__init__()
 
         self.modes1 = modes1
         self.modes2 = modes2
@@ -212,7 +212,7 @@ class FNF2d_A(nn.Module):
         return torch.cat((gridx, gridy), dim=-1).to(device)
 
 # TODO: fix extraction of functionals from single function
-class FNF2d_B(nn.Module):
+class FNF2d_lowrank(nn.Module):
     def __init__(self, modes1, modes2, width,
                  width_final=128,
                  padding=8,
@@ -229,7 +229,7 @@ class FNF2d_B(nn.Module):
         d_out           (int): finite number of desired outputs (number of functionals)
         width_lfunc     (int): number of linear functionals to extract from single latent function
         """
-        super(FNF2d_B, self).__init__()
+        super(FNF2d_lowrank, self).__init__()
 
         self.modes1 = modes1
         self.modes2 = modes2
