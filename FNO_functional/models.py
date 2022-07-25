@@ -19,7 +19,6 @@ def resize_rfft2(ar, s):
     out = resize_rfft(ar, s2) # last axis (rfft)
     return resize_fft(out.permute(0, 1, 3, 2), s1).permute(0, 1, 3, 2) # second to last axis (fft)
 
-# TODO: add a bias optional arg to add to output if true, using nn.parameter
 # TODO: absorb complex conjugate into parametrization of weights
 class LinearFunctionals2d(nn.Module):
     def __init__(self, out_channels, modes1, modes2):
