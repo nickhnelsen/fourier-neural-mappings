@@ -35,9 +35,9 @@ def resize_rfft(ar, s):
         out = ar[..., :s]
     else: # edge case
         raise ValueError("s must be greater than or equal to 1.")
-        
+
     return out
-    
+
 
 def resize_fft(ar, s):
     """
@@ -63,8 +63,8 @@ def resize_fft(ar, s):
             raise ValueError("s must be greater than or equal to 1.")
         else:
             out = ar[..., 0:1]
-            
-    return out 
+
+    return out
 
 
 def to_torch(x, to_float=True):
@@ -80,11 +80,11 @@ def validate(f, fhat):
     '''
     Helper function to compute relative L^2 error of approximations.
     Takes care of different array shape interpretations in numpy.
-    
+
     INPUTS:
             f : array of high-fidelity function values
          fhat : array of approximation values
-        
+
     OUTPUTS:
         error : float, relative error
     '''
@@ -129,7 +129,7 @@ class MatReader(object):
         except:
             self.data = hdf5storage.loadmat(self.file_path, variable_names=self.variable_names)
             self.old_mat = False
-                
+
     def load_file(self, file_path):
         self.file_path = file_path
         self._load_file()
@@ -288,12 +288,12 @@ class LppLoss(object):
 
     def __call__(self, x, y):
         return self.rel(x, y)
-    
+
 
 # print the number of parameters
 def count_params(model):
     c = 0
     for p in list(model.parameters()):
-        c += reduce(operator.mul, 
+        c += reduce(operator.mul,
                     list(p.size()+(2,) if p.is_complex() else p.size()))
     return c
