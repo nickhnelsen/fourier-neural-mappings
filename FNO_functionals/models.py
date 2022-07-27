@@ -63,7 +63,7 @@ class LinearFunctionals2d(nn.Module):
 
         # Integrate the conjugate product in physical space by summing Fourier coefficients
         x = 2*torch.sum(x[..., :self.modes1, :], dim=(-2, -1)) + \
-            2*torch.sum(x[..., -self.modes1:, 1:], dim=(-2, -1)) - x[..., 0:1, 0:1]
+            2*torch.sum(x[..., -self.modes1:, 1:], dim=(-2, -1)) - x[..., 0, 0]
 
         return x
 
