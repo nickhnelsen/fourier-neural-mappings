@@ -1,7 +1,7 @@
 import torch
 import numpy as np
-import os, sys; sys.path.append(os.path.join('..'))
-from util.utilities_module import to_torch
+import os, sys; sys.path.append(os.path.join('..', 'util'))
+from utilities_module import to_torch
 
 
 # Process command line arguments
