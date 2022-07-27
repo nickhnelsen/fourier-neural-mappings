@@ -164,6 +164,57 @@ class SpectralConv2d(nn.Module):
 
         return x
 
+class SpectralConv2d_diagonal(nn.Module):
+    def __init__(self, out_channels, modes1, modes2):
+        """
+        Fourier integral operator layer defined for functions over the torus with DIAGONAL matrix
+        """
+        super(SpectralConv2d_diagonal, self).__init__()
+
+        self.out_channels = out_channels
+
+        # Number of Fourier modes to multiply, at most floor(N/2) + 1
+        self.modes1 = modes1 
+        self.modes2 = modes2
+
+        self.scale = 1. / self.out_channels
+        self.weights1 = nn.Parameter(self.scale * torch.rand(self.out_channels, self.modes1, self.modes2, dtype=torch.cfloat))
+        self.weights2 = nn.Parameter(self.scale * torch.rand(self.out_channels, self.modes1, self.modes2, dtype=torch.cfloat))
+
+    def compl_mul2d_pw(self, input_tensor, weights):
+        """
+        Complex pointwise multiplication (diagonal matrix multiplication):
+        (batch, out_channel, nx, ny), (out_channel, nx, ny) -> (batch, out_channel, nx, ny)
+        """
+        return torch.einsum("boxy,oxy->boxy", input_tensor, weights)
+
+    def forward(self, x, s=None):
+        """
+        Input shape (of x):     (batch, channels, nx_in, ny_in)
+        Output shape:           (batch, channels, nx_in, ny_in)
+        s:                      (list or tuple, length 2): desired spatial resolution (s,s) in output space
+        """
+        # Original resolution
+        xsize = x.shape[-2:]
+        
+        # Compute Fourier coeffcients (un-scaled)
+        x = fft.rfft2(x)
+
+        # Multiply relevant Fourier modes
+        out_ft = torch.zeros(x.shape[0], self.out_channels, xsize[-2], xsize[-1]//2 + 1, dtype=torch.cfloat, device=x.device)
+        out_ft[:, :, :self.modes1, :self.modes2] = \
+            self.compl_mul2d_pw(x[:, :, :self.modes1, :self.modes2], self.weights1)
+        out_ft[:, :, -self.modes1:, :self.modes2] = \
+            self.compl_mul2d_pw(x[:, :, -self.modes1:, :self.modes2], self.weights2)
+
+        # Return to physical space
+        if s is None or tuple(s) == tuple(xsize):
+            x = fft.irfft2(out_ft, s=tuple(xsize))
+        else:
+            x = fft.irfft2(resize_rfft2(out_ft, s), s=s, norm="forward") / (xsize[-2] * xsize[-1])
+
+        return x
+
 class FNF2d(nn.Module):
     def __init__(self, modes1, modes2, width,
                  width_final=128,
@@ -270,7 +321,7 @@ class FNF2d_lowrank(nn.Module):
                  d_in=4,
                  d_out=1,
                  width_lfunc=None,
-                 rank=2
+                 rank=4
                  ):
         """
         modes1, modes2  (int): Fourier mode truncation levels
@@ -298,16 +349,18 @@ class FNF2d_lowrank(nn.Module):
         self.rank = rank
         
         self.fc0 = nn.Linear(self.d_in, self.width)
-
         self.conv0 = SpectralConv2d(self.width, self.width, self.modes1, self.modes2)
-        self.conv1 = SpectralConv2d(self.width, self.width, self.modes1, self.modes2)
-        self.conv2 = SpectralConv2d(self.width, self.width, self.modes1, self.modes2)
-
         self.w0 = nn.Conv2d(self.width, self.width, 1)
+        
+        self.lrfc1 = nn.Linear(self.width, self.rank, bias=False)
+        self.conv1 = SpectralConv2d(self.rank, self.width, self.modes1, self.modes2)
         self.w1 = nn.Conv2d(self.width, self.width, 1)
+        
+        self.lrfc2 = nn.Linear(self.width, self.rank, bias=False)
+        self.conv2 = SpectralConv2d(self.rank, self.width, self.modes1, self.modes2)
         self.w2 = nn.Conv2d(self.width, self.width, 1)
         
-        self.lfc0 = nn.Linear(self.width, self.rank)
+        self.llrfc0 = nn.Linear(self.width, self.rank, bias=False)
         self.lfunc0 = LinearFunctionals2d(self.rank, self.width_lfunc, self.modes1, self.modes2)
 
         self.fc1 = nn.Linear(self.width_lfunc, self.width_final)
@@ -335,11 +388,17 @@ class FNF2d_lowrank(nn.Module):
         x = x1 + x2
         x = F.gelu(x)
 
+        x = x.permute(0, 2, 3, 1)
+        x = self.lrfc1(x)
+        x = x.permute(0, 3, 1, 2)
         x1 = self.conv1(x)
         x2 = self.w1(x)
         x = x1 + x2
         x = F.gelu(x)
 
+        x = x.permute(0, 2, 3, 1)
+        x = self.lrfc2(x)
+        x = x.permute(0, 3, 1, 2)
         x1 = self.conv2(x)
         x2 = self.w2(x)
         x = x1 + x2
@@ -347,7 +406,7 @@ class FNF2d_lowrank(nn.Module):
 
         # Extract Fourier neural functionals on the torus
         x = x.permute(0, 2, 3, 1)
-        x = self.lfc0(x)
+        x = self.llrfc0(x)
         x = x.permute(0, 3, 1, 2)
         x = self.lfunc0(x)
         
@@ -397,8 +456,8 @@ class FNF2d_diagonal(nn.Module):
         self.fc0 = nn.Linear(self.d_in, self.width)
 
         self.conv0 = SpectralConv2d(self.width, self.width, self.modes1, self.modes2)
-        self.conv1 = SpectralConv2d(self.width, self.width, self.modes1, self.modes2)
-        self.conv2 = SpectralConv2d(self.width, self.width, self.modes1, self.modes2)
+        self.conv1 = SpectralConv2d_diagonal(self.width, self.modes1, self.modes2)
+        self.conv2 = SpectralConv2d_diagonal(self.width, self.modes1, self.modes2)
 
         self.w0 = nn.Conv2d(self.width, self.width, 1)
         self.w1 = nn.Conv2d(self.width, self.width, 1)
