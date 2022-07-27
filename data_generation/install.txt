@@ -19,8 +19,13 @@ pip install -e .
 # 3. FEniCS (this could take a while)
 conda install -c conda-forge fenics
 
-If the FEniCS installation fails at this step, use mamba:
+# If the FEniCS installation fails at this step, use mamba:
 conda install mamba -n base -c conda-forge
 mamba install fenics -c conda-forge
 
 #########################################################
+
+# To run the forward solver
+# Adjust the PATH in generate_data.py, then run it with its five command line arguments
+# OPTIONAL: adjust the PATH in process_data.py, then run it with its single command line argument
+
