@@ -5,7 +5,7 @@ from timeit import default_timer
 
 from models import FNF2d
 from Adam import Adam
-from utilities_module import LpLoss, LppLoss, count_params, validate, dataset_with_indices
+from utilities_module import LpLoss, count_params, validate, dataset_with_indices
 from torch.utils.data import TensorDataset, DataLoader
 TensorDatasetID = dataset_with_indices(TensorDataset)
 
@@ -283,7 +283,6 @@ print('######### End of all', N_MC, 'MC loops\n')
 ################################################################
 if FLAG_save_plots:
     from configure_plots import plt, mpl
-    from mpl_toolkits.axes_grid1 import ImageGrid
 
     plt.rcParams['figure.figsize'] = [6.0, 4.0]
     plt.rcParams['font.size'] = 16
