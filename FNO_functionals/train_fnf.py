@@ -23,14 +23,16 @@ d_str = sys.argv[4]         # KLE dimension of training inputs (d = 1, 2, 5, 10,
 sigma = int(sys.argv[5])    # index between 0 and 8 that defines the noise standard deviation
 
 # File I/O
-data_prefix = '/groups/astuart/nnelsen/data/raise/training/'
-data_prefix_eval = '/groups/astuart/nnelsen/data/raise/validation/'
+# data_prefix = '/groups/astuart/nnelsen/data/raise/training/'
+# data_prefix_eval = '/groups/astuart/nnelsen/data/raise/validation/'
+data_prefix = '/media/nnelsen/SharedNHN/documents/datasets/Sandia/raise/training/'
+data_prefix_eval = '/media/nnelsen/SharedNHN/documents/datasets/Sandia/raise/validation/'
 FLAG_save_model = True
 FLAG_save_plots = True
 SAVE_AFTER = 10
 
 # Number of independent Monte Carlo loops over training trials
-N_MC = 5
+N_MC = 2
 
 # Sample size  
 N_test = 100        # number of validation samples to monitor during training
@@ -84,7 +86,6 @@ loss_f = LpLoss(size_average=False)
 
 # Evaluation objects
 loss_vec = LpLoss(size_average=False, reduction=False) # relative L^2 error (not summed)
-loss_abs = LppLoss(size_average=False, reduction=True) # absolute squared L^2 error
 
 # File IO evaluation
 if d_str == '1000':
@@ -246,23 +247,20 @@ for loop in range(N_MC):
             out = model(x)
     
             er_test_loss += loss_f(out, y).item()
-            num += loss_abs.abs(out, y).item()
-            den += loss_abs.abs(y, 0*y).item()
             
             errors_test[idx_test] = loss_vec(out, y).cpu()
             
             qoi_out[idx_test] = out.squeeze().cpu()
     
     er_test_loss /= N_eval_max
-    er_test_bochner = (num/den)**(0.5)
     er_test_qoi = validate(qoi_eval, qoi_out)
     t2 = default_timer()
     print("Time to evaluate", N_eval_max, "samples (sec):", t2-t1)
-    print("Average relative L2 test:", er_test_loss, "Relative Bochner L2 test:", er_test_bochner)
+    print("Average relative L2 test:", er_test_loss)
     print("Relative L2 QoI test error:", er_test_qoi)
     
     # Save test errors
-    test_errors_all.append(np.asarray([er_test_qoi, er_test_bochner, er_test_loss]))
+    test_errors_all.append(np.asarray([er_test_qoi, er_test_loss]))
     errors_test_list.append(errors_test.numpy())
     np.savez(savepath + 'test_errors_all' + obj_suffix_eval[:-3] + 'npz',\
              qoi_bochner_loss=np.asarray(test_errors_all),\
