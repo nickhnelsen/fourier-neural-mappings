@@ -23,16 +23,14 @@ d_str = sys.argv[4]         # KLE dimension of training inputs (d = 1, 2, 5, 10,
 sigma = int(sys.argv[5])    # index between 0 and 8 that defines the noise standard deviation
 
 # File I/O
-# data_prefix = '/groups/astuart/nnelsen/data/raise/training/'
-# data_prefix_eval = '/groups/astuart/nnelsen/data/raise/validation/'
-data_prefix = '/media/nnelsen/SharedNHN/documents/datasets/Sandia/raise/training/'
-data_prefix_eval = '/media/nnelsen/SharedNHN/documents/datasets/Sandia/raise/validation/'
+data_prefix = '/groups/astuart/nnelsen/data/raise/training/'
+data_prefix_eval = '/groups/astuart/nnelsen/data/raise/validation/'
 FLAG_save_model = True
 FLAG_save_plots = True
 SAVE_AFTER = 10
 
 # Number of independent Monte Carlo loops over training trials
-N_MC = 2
+N_MC = 5
 
 # Sample size  
 N_test = 100        # number of validation samples to monitor during training
