@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Fri Jul  8 16:13:16 2022
-
-@author: nnelsen
-"""
-
 import os
 import sys
 from timeit import default_timer
