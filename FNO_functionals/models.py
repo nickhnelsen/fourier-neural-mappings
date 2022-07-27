@@ -59,7 +59,7 @@ class LinearFunctionals2d(nn.Module):
         x = resize_rfft2(x, (2*self.modes1, 2*self.modes2))
 
         # Multiply relevant Fourier modes and take the real part
-        x = self.compl_mul2d_pw(x, self.weights).real
+        x = self.compl_mul2d(x, self.weights).real
 
         # Integrate the conjugate product in physical space by summing Fourier coefficients
         x = 2*torch.sum(x[..., :self.modes1, :], dim=(-2, -1)) + \
