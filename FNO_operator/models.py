@@ -184,25 +184,279 @@ class FNO2d(nn.Module):
         x = F.pad(x, [0, x_res[-1]//self.padding, 0, x_res[-2]//self.padding])
 
         # Fourier integral operator layers on the torus
-        x1 = self.conv0(x)
-        x2 = self.w0(x)
-        x = x1 + x2
+        x = self.w0(x) + self.conv0(x)
         x = F.gelu(x)
 
-        x1 = self.conv1(x)
-        x2 = self.w1(x)
-        x = x1 + x2
+        x = self.w1(x) + self.conv1(x)
         x = F.gelu(x)
 
-        x1 = self.conv2(x)
-        x2 = self.w2(x)
-        x = x1 + x2
+        x = self.w2(x) + self.conv2(x)
         x = F.gelu(x)
 
-        x1 = self.conv3(x, s=self.s_outputspace)        # change resolution in consistent way
-        x2 = self.projector(x, s=self.s_outputspace)    # change resolution in consistent way
-        x2 = self.w3(x2)
-        x = x1 + x2
+        # Change resolution in function space consistent way
+        x = self.w3(self.projector(x, s=self.s_outputspace)) + self.conv3(x, s=self.s_outputspace)
+
+        # Map from the torus into the output domain
+        if self.s_outputspace is not None:
+            x = x[..., :-self.num_pad_outputspace[-2], :-self.num_pad_outputspace[-1]]
+        else:
+            x = x[..., :-x_res[-2]//self.padding, :-x_res[-1]//self.padding]
+        
+        # Final projection layer
+        x = x.permute(0, 2, 3, 1)
+        x = self.fc1(x)
+        x = F.gelu(x)
+        x = self.fc2(x)
+
+        return x.permute(0, 3, 1, 2)
+    
+    def get_grid(self, shape, device):
+        """
+        Returns a discretization of the 2D identity function on [0,1]^2
+        """
+        batchsize, size_x, size_y = shape[0], shape[1], shape[2]
+        gridx = torch.linspace(0, 1, size_x)
+        gridx = gridx.reshape(1, size_x, 1, 1).repeat([batchsize, 1, size_y, 1])
+        gridy = torch.linspace(0, 1, size_y)
+        gridy = gridy.reshape(1, 1, size_y, 1).repeat([batchsize, size_x, 1, 1])
+        return torch.cat((gridx, gridy), dim=-1).to(device)
+    
+    def projector(self, x, s=None):
+        """
+        Either truncate or zero pad the Fourier modes of x so that x has new resolution s
+        """
+        if s is not None and tuple(s) != tuple(x.shape[-2:]):
+            x = fft.irfft2(resize_rfft2(fft.rfft2(x, norm="forward"), s), s=s, norm="forward")
+            
+        return x
+
+    def set_outputspace_resolution(self, s=None):
+        """
+        Helper to set desired output space resolution of the model at any time
+        """
+        if s is None:
+            self.s_outputspace = None
+            self.num_pad_outputspace = None
+        else:
+            self.s_outputspace = tuple([r + r//self.padding for r in list(s)])
+            self.num_pad_outputspace = tuple([r//self.padding for r in list(s)])
+            
+class FNO2d_lowrank(nn.Module):
+    def __init__(self, modes1, modes2, width,
+                 s_outputspace=None,
+                 width_final=128,
+                 padding=8,
+                 d_in=4,
+                 d_out=1,
+                 rank=4
+                 ):
+        """
+        modes1, modes2  (int): Fourier mode truncation levels
+        width           (int): constant dimension of channel space
+        s_outputspace   (list or tuple, length 2): desired spatial resolution (s,s) in output space
+        width_final     (int): width of the final projection layer
+        padding         (int or float): (1.0/padding) is fraction of domain to zero pad (non-periodic)
+        d_in            (int): number of input channels (here 2 velocity inputs + 2 space variables)
+        d_out           (int): one output channel (co-domain dimension of output space functions)
+        rank            (int): rank of matrix-valued kernel defining the FNO layer
+        """
+        super(FNO2d_lowrank, self).__init__()
+
+        self.modes1 = modes1
+        self.modes2 = modes2
+        self.width = width
+        self.width_final = width_final
+        self.padding = padding
+        self.d_in = d_in
+        self.d_out = d_out
+        self.rank = rank
+        
+        self.set_outputspace_resolution(s_outputspace)
+
+        self.fc0 = nn.Linear(self.d_in, self.width)
+        self.w0 = nn.Conv2d(self.width, self.width, 1)
+        self.conv0 = SpectralConv2d(self.width, self.width, self.modes1, self.modes2)
+
+        self.w1 = nn.Conv2d(self.width, self.width, 1)
+        self.lrfc1 = nn.Linear(self.width, self.rank, bias=False)
+        self.conv1 = SpectralConv2d(self.rank, self.width, self.modes1, self.modes2)
+
+        self.w2 = nn.Conv2d(self.width, self.width, 1)
+        self.lrfc2 = nn.Linear(self.width, self.rank, bias=False)
+        self.conv2 = SpectralConv2d(self.rank, self.width, self.modes1, self.modes2)
+
+        self.w3 = nn.Conv2d(self.width, self.width, 1)
+        self.lrfc3 = nn.Linear(self.width, self.rank, bias=False)
+        self.conv3 = SpectralConv2d(self.rank, self.width, self.modes1, self.modes2)
+
+        self.fc1 = nn.Linear(self.width, self.width_final)
+        self.fc2 = nn.Linear(self.width_final, self.d_out)
+
+    def forward(self, x):
+        """
+        Input shape (of x):     (batch, channels=2, nx_in, ny_in)
+        Output shape:           (batch, channels=1, nx_out, ny_out)
+        
+        The input resolution is determined by x.shape[-2:]
+        The output resolution is determined by self.s_outputspace
+        """
+        # Lifting layer
+        x_res = x.shape[-2:]
+        x = x.permute(0, 2, 3, 1)
+        x = torch.cat((x, self.get_grid(x.shape, x.device)), dim=-1)    # grid ``features''
+        x = self.fc0(x)
+        x = x.permute(0, 3, 1, 2)
+        
+        # Map from input domain into the torus
+        x = F.pad(x, [0, x_res[-1]//self.padding, 0, x_res[-2]//self.padding])
+
+        # Fourier integral operator layers on the torus
+        x = self.w0(x) + self.conv0(x)
+        x = F.gelu(x)
+
+        x1 = self.w1(x)
+        x = x.permute(0, 2, 3, 1)
+        x = self.lrfc1(x)
+        x = x.permute(0, 3, 1, 2)
+        x = self.conv1(x)
+        x = x1 + x
+        x = F.gelu(x)
+
+        x1 = self.w2(x)
+        x = x.permute(0, 2, 3, 1)
+        x = self.lrfc2(x)
+        x = x.permute(0, 3, 1, 2)
+        x = self.conv2(x)
+        x = x1 + x
+        x = F.gelu(x)
+
+        # Change resolution in function space consistent way
+        x1 = self.w3(self.projector(x, s=self.s_outputspace))
+        x = x.permute(0, 2, 3, 1)
+        x = self.lrfc3(x)
+        x = x.permute(0, 3, 1, 2)
+        x = self.conv3(x, s=self.s_outputspace)
+        x = x1 + x
+
+        # Map from the torus into the output domain
+        if self.s_outputspace is not None:
+            x = x[..., :-self.num_pad_outputspace[-2], :-self.num_pad_outputspace[-1]]
+        else:
+            x = x[..., :-x_res[-2]//self.padding, :-x_res[-1]//self.padding]
+        
+        # Final projection layer
+        x = x.permute(0, 2, 3, 1)
+        x = self.fc1(x)
+        x = F.gelu(x)
+        x = self.fc2(x)
+
+        return x.permute(0, 3, 1, 2)
+    
+    def get_grid(self, shape, device):
+        """
+        Returns a discretization of the 2D identity function on [0,1]^2
+        """
+        batchsize, size_x, size_y = shape[0], shape[1], shape[2]
+        gridx = torch.linspace(0, 1, size_x)
+        gridx = gridx.reshape(1, size_x, 1, 1).repeat([batchsize, 1, size_y, 1])
+        gridy = torch.linspace(0, 1, size_y)
+        gridy = gridy.reshape(1, 1, size_y, 1).repeat([batchsize, size_x, 1, 1])
+        return torch.cat((gridx, gridy), dim=-1).to(device)
+    
+    def projector(self, x, s=None):
+        """
+        Either truncate or zero pad the Fourier modes of x so that x has new resolution s
+        """
+        if s is not None and tuple(s) != tuple(x.shape[-2:]):
+            x = fft.irfft2(resize_rfft2(fft.rfft2(x, norm="forward"), s), s=s, norm="forward")
+            
+        return x
+
+    def set_outputspace_resolution(self, s=None):
+        """
+        Helper to set desired output space resolution of the model at any time
+        """
+        if s is None:
+            self.s_outputspace = None
+            self.num_pad_outputspace = None
+        else:
+            self.s_outputspace = tuple([r + r//self.padding for r in list(s)])
+            self.num_pad_outputspace = tuple([r//self.padding for r in list(s)])
+            
+class FNO2d_diagonal(nn.Module):
+    def __init__(self, modes1, modes2, width,
+                 s_outputspace=None,
+                 width_final=128,
+                 padding=8,
+                 d_in=4,
+                 d_out=1
+                 ):
+        """
+        modes1, modes2  (int): Fourier mode truncation levels
+        width           (int): constant dimension of channel space
+        s_outputspace   (list or tuple, length 2): desired spatial resolution (s,s) in output space
+        width_final     (int): width of the final projection layer
+        padding         (int or float): (1.0/padding) is fraction of domain to zero pad (non-periodic)
+        d_in            (int): number of input channels (here 2 velocity inputs + 2 space variables)
+        d_out           (int): one output channel (co-domain dimension of output space functions)
+        """
+        super(FNO2d_diagonal, self).__init__()
+
+        self.modes1 = modes1
+        self.modes2 = modes2
+        self.width = width
+        self.width_final = width_final
+        self.padding = padding
+        self.d_in = d_in
+        self.d_out = d_out 
+        
+        self.set_outputspace_resolution(s_outputspace)
+
+        self.fc0 = nn.Linear(self.d_in, self.width)
+
+        self.conv0 = SpectralConv2d(self.width, self.width, self.modes1, self.modes2)
+        self.conv1 = SpectralConv2d_diagonal(self.width, self.modes1, self.modes2)
+        self.conv2 = SpectralConv2d_diagonal(self.width, self.modes1, self.modes2)
+        self.conv3 = SpectralConv2d_diagonal(self.width, self.modes1, self.modes2)
+
+        self.w0 = nn.Conv2d(self.width, self.width, 1)
+        self.w1 = nn.Conv2d(self.width, self.width, 1)
+        self.w2 = nn.Conv2d(self.width, self.width, 1)
+        self.w3 = nn.Conv2d(self.width, self.width, 1)
+
+        self.fc1 = nn.Linear(self.width, self.width_final)
+        self.fc2 = nn.Linear(self.width_final, self.d_out)
+
+    def forward(self, x):
+        """
+        Input shape (of x):     (batch, channels=2, nx_in, ny_in)
+        Output shape:           (batch, channels=1, nx_out, ny_out)
+        
+        The input resolution is determined by x.shape[-2:]
+        The output resolution is determined by self.s_outputspace
+        """
+        # Lifting layer
+        x_res = x.shape[-2:]
+        x = x.permute(0, 2, 3, 1)
+        x = torch.cat((x, self.get_grid(x.shape, x.device)), dim=-1)    # grid ``features''
+        x = self.fc0(x)
+        x = x.permute(0, 3, 1, 2)
+        
+        # Map from input domain into the torus
+        x = F.pad(x, [0, x_res[-1]//self.padding, 0, x_res[-2]//self.padding])
+
+        # Fourier integral operator layers on the torus
+        x = self.w0(x) + self.conv0(x)
+        x = F.gelu(x)
+
+        x = self.w1(x) + self.conv1(x)
+        x = F.gelu(x)
+
+        x = self.w2(x) + self.conv2(x)
+        x = F.gelu(x)
+
+        # Change resolution in function space consistent way
+        x = self.w3(self.projector(x, s=self.s_outputspace)) + self.conv3(x, s=self.s_outputspace)
 
         # Map from the torus into the output domain
         if self.s_outputspace is not None:

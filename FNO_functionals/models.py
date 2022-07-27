@@ -278,19 +278,13 @@ class FNF2d(nn.Module):
         x = F.pad(x, [0, x.shape[-1]//self.padding, 0, x.shape[-2]//self.padding])
 
         # Fourier integral operator layers on the torus
-        x1 = self.conv0(x)
-        x2 = self.w0(x)
-        x = x1 + x2
+        x = self.w0(x) + self.conv0(x)
         x = F.gelu(x)
 
-        x1 = self.conv1(x)
-        x2 = self.w1(x)
-        x = x1 + x2
+        x = self.w1(x) + self.conv1(x)
         x = F.gelu(x)
 
-        x1 = self.conv2(x)
-        x2 = self.w2(x)
-        x = x1 + x2
+        x = self.w2(x) + self.conv2(x)
         x = F.gelu(x)
 
         # Extract Fourier neural functionals on the torus
@@ -349,16 +343,16 @@ class FNF2d_lowrank(nn.Module):
         self.rank = rank
         
         self.fc0 = nn.Linear(self.d_in, self.width)
-        self.conv0 = SpectralConv2d(self.width, self.width, self.modes1, self.modes2)
         self.w0 = nn.Conv2d(self.width, self.width, 1)
+        self.conv0 = SpectralConv2d(self.width, self.width, self.modes1, self.modes2)
         
+        self.w1 = nn.Conv2d(self.width, self.width, 1)
         self.lrfc1 = nn.Linear(self.width, self.rank, bias=False)
         self.conv1 = SpectralConv2d(self.rank, self.width, self.modes1, self.modes2)
-        self.w1 = nn.Conv2d(self.width, self.width, 1)
         
+        self.w2 = nn.Conv2d(self.width, self.width, 1)
         self.lrfc2 = nn.Linear(self.width, self.rank, bias=False)
         self.conv2 = SpectralConv2d(self.rank, self.width, self.modes1, self.modes2)
-        self.w2 = nn.Conv2d(self.width, self.width, 1)
         
         self.llrfc0 = nn.Linear(self.width, self.rank, bias=False)
         self.lfunc0 = LinearFunctionals2d(self.rank, self.width_lfunc, self.modes1, self.modes2)
@@ -383,25 +377,23 @@ class FNF2d_lowrank(nn.Module):
         x = F.pad(x, [0, x.shape[-1]//self.padding, 0, x.shape[-2]//self.padding])
 
         # Fourier integral operator layers on the torus
-        x1 = self.conv0(x)
-        x2 = self.w0(x)
-        x = x1 + x2
+        x = self.w0(x) + self.conv0(x)
         x = F.gelu(x)
 
+        x1 = self.w1(x)
         x = x.permute(0, 2, 3, 1)
         x = self.lrfc1(x)
         x = x.permute(0, 3, 1, 2)
-        x1 = self.conv1(x)
-        x2 = self.w1(x)
-        x = x1 + x2
+        x = self.conv1(x)
+        x = x1 + x
         x = F.gelu(x)
 
+        x1 = self.w2(x)
         x = x.permute(0, 2, 3, 1)
         x = self.lrfc2(x)
         x = x.permute(0, 3, 1, 2)
-        x1 = self.conv2(x)
-        x2 = self.w2(x)
-        x = x1 + x2
+        x = self.conv2(x)
+        x = x1 + x
         x = F.gelu(x)
 
         # Extract Fourier neural functionals on the torus
@@ -485,19 +477,13 @@ class FNF2d_diagonal(nn.Module):
         x = F.pad(x, [0, x.shape[-1]//self.padding, 0, x.shape[-2]//self.padding])
 
         # Fourier integral operator layers on the torus
-        x1 = self.conv0(x)
-        x2 = self.w0(x)
-        x = x1 + x2
+        x = self.w0(x) + self.conv0(x)
         x = F.gelu(x)
 
-        x1 = self.conv1(x)
-        x2 = self.w1(x)
-        x = x1 + x2
+        x = self.w1(x) + self.conv1(x)
         x = F.gelu(x)
 
-        x1 = self.conv2(x)
-        x2 = self.w2(x)
-        x = x1 + x2
+        x = self.w2(x) + self.conv2(x)
         x = F.gelu(x)
 
         # Extract Fourier neural functionals on the torus
