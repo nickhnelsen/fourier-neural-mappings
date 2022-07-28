@@ -105,7 +105,6 @@ y_eval = qoi_eval.unsqueeze(-1)
 x_eval = x_eval.unsqueeze(-1).repeat(1, 1, 1, s_eval) # velocity is constant in y=x_2 direction
 eval_loader = DataLoader(TensorDatasetID(x_eval, y_eval), batch_size=batch_size, shuffle=False)
 
-# TODO: remove for public version of code
 # Evaluate trained model on 2D parameter grid and save result to .pt file
 x_tmp = torch.load(data_prefix_eval + '2d_qoi_plot/' + 'velocity.pt')['velocity'][:,::sub_in]
 N_grid, s_grid = x_tmp.shape
@@ -234,8 +233,6 @@ for loop in range(N_MC):
     model.eval()
     t1 = default_timer()
     er_test_loss = 0.0
-    num = 0.0
-    den = 0.0
     qoi_out = torch.zeros(N_eval_max)
     errors_test = torch.zeros(y_eval.shape[0])
     with torch.no_grad():
@@ -254,17 +251,16 @@ for loop in range(N_MC):
     er_test_qoi = validate(qoi_eval, qoi_out)
     t2 = default_timer()
     print("Time to evaluate", N_eval_max, "samples (sec):", t2-t1)
-    print("Average relative L2 test:", er_test_loss)
+    print("Average relative L2 test loss:", er_test_loss)
     print("Relative L2 QoI test error:", er_test_qoi)
     
     # Save test errors
-    test_errors_all.append(np.asarray([er_test_qoi, er_test_loss]))
+    test_errors_all.append(np.asarray([er_test_qoi, er_test_qoi, er_test_loss]))
     errors_test_list.append(errors_test.numpy())
     np.savez(savepath + 'test_errors_all' + obj_suffix_eval[:-3] + 'npz',\
              qoi_bochner_loss=np.asarray(test_errors_all),\
                  rel_test_error_list=np.asarray(errors_test_list))
     
-    # TODO: remove for public version of code
     # Evaluate trained model on 2D parameter grid and save result to .pt file
     qoi_grid = torch.zeros(x_grid.shape[0])
     with torch.no_grad():
@@ -302,7 +298,6 @@ if FLAG_save_plots:
     plt.legend(["Train", "Test"])
     plt.savefig(plot_folder + "epochs" + obj_suffix[:-3] + "pdf", format='pdf')
     
-    # TODO: remove for public version of code
     # Make 2D QoI grid plot
     s_outputtest = (33, 33)
     grid = torch.load(data_prefix_eval + '2d_qoi_plot/' + 'params.pt')['params']
