@@ -3,7 +3,7 @@ import numpy as np
 import os, sys; sys.path.append(os.path.join('..', 'util'))
 from timeit import default_timer
 
-from models import FNO2d
+from models import FNO2d as FNO2d
 from Adam import Adam
 from utilities_module import LpLoss, LppLoss, count_params, validate, dataset_with_indices
 from torch.utils.data import TensorDataset, DataLoader
@@ -23,14 +23,16 @@ d_str = sys.argv[4]         # KLE dimension of training inputs (d = 1, 2, 5, 10,
 sigma = int(sys.argv[5])    # index between 0 and 8 that defines the noise standard deviation
 
 # File I/O
-data_prefix = '/groups/astuart/nnelsen/data/raise/training/'
-data_prefix_eval = '/groups/astuart/nnelsen/data/raise/validation/'
+# data_prefix = '/groups/astuart/nnelsen/data/raise/training/'
+# data_prefix_eval = '/groups/astuart/nnelsen/data/raise/validation/'
+data_prefix = '/media/nnelsen/SharedNHN/documents/datasets/Sandia/raise/training/'      # local
+data_prefix_eval = '/media/nnelsen/SharedNHN/documents/datasets/Sandia/raise/validation/'      # local
 FLAG_save_model = True
 FLAG_save_plots = True
 SAVE_AFTER = 10
 
 # Number of independent Monte Carlo loops over training trials
-N_MC = 5
+N_MC = 1
 
 # Sample size  
 N_test = 100        # number of validation samples to monitor during training
