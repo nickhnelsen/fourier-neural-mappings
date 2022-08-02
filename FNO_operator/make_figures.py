@@ -19,6 +19,90 @@ save_plots = not True
 plot_folder = "./results/figures_raise/"
 os.makedirs(plot_folder, exist_ok=True)
 
+# %% Epochs
+epochs = 500
+epoch_list = np.arange(1, 1 + epochs)
+stdevs = np.arange(0.0, 2.01, 0.25)
+data_suffix = 'nu_inf_ell_p25_torch/'
+obj_prefix = 'train_errors_all'
+
+data_type = 'efficiency/'
+N_train = 250
+dd = 1000
+sigma = 0
+stdev = stdevs[sigma]
+
+style_list = ['k', 'C0--', 'C3--']
+color_list = ['k', 'C0', 'C3']
+cc = 0
+
+obj_suffix = '_n' + str(N_train) + '_d' + str(dd) + '_s' + str(sigma) + '.npy'
+data_folder = data_prefix + data_type + data_suffix
+er = np.load(data_folder + obj_prefix + obj_suffix)
+er_mean = er.mean(0)
+er_std = er.std(0)
+lb = er_mean - n_std*er_std
+ub = er_mean + n_std*er_std
+
+plt.close()
+plt.figure(100)
+plt.semilogy(epoch_list, er_mean[:,0], style_list[0], label=r'Train')
+plt.fill_between(epoch_list, lb[:,0], ub[:,0], facecolor=color_list[0], alpha=0.4)
+plt.semilogy(epoch_list, er_mean[:,1], color=color_list[1], ls=(0, (3, 1, 1, 1, 1, 1)), label=r'Validation')
+plt.fill_between(epoch_list, lb[:,1], ub[:,1], facecolor=color_list[1], alpha=0.2)
+plt.grid()
+if sigma in [0, 4, 8]:
+    plt.title(r'FNO $(N=%d, d_{\mathrm{tr}}=%d, \sigma=%d)$' % (N_train, dd, stdev))
+elif sigma in [2, 6]:
+    plt.title(r'FNO $(N=%d, d_{\mathrm{tr}}=%d, \sigma=%.1f)$' % (N_train, dd, stdev))
+else:
+    plt.title(r'FNO $(N=%d, d_{\mathrm{tr}}=%d, \sigma=%.2f)$' % (N_train, dd, stdev))
+plt.xlim(0, epochs)
+plt.ylim(1e-3, 1.5)
+plt.xlabel(r'Epoch')
+plt.ylabel(r'Relative error')
+plt.legend(ncol=1, loc='best').set_draggable(True)
+if save_plots:
+    plt.savefig(plot_folder + "fno_epochs" + obj_suffix[:-3] + "pdf", format='pdf')
+
+
+data_type = 'robustness/'
+N_train = 5000
+dd = 1000
+sigma_list = [0, 6]
+
+for i, sigma in enumerate(sigma_list):
+    stdev = stdevs[sigma]
+
+    obj_suffix = '_n' + str(N_train) + '_d' + str(dd) + '_s' + str(sigma) + '.npy'
+    data_folder = data_prefix + data_type + data_suffix
+    er = np.load(data_folder + obj_prefix + obj_suffix)
+    er_mean = er.mean(0)
+    er_std = er.std(0)
+    lb = er_mean - n_std*er_std
+    ub = er_mean + n_std*er_std
+    
+    plt.close()
+    plt.figure(100 + i)
+    plt.semilogy(epoch_list, er_mean[:,0], style_list[0], label=r'Train')
+    plt.fill_between(epoch_list, lb[:,0], ub[:,0], facecolor=color_list[0], alpha=0.4)
+    plt.semilogy(epoch_list, er_mean[:,1], color=color_list[1], ls=(0, (3, 1, 1, 1, 1, 1)), label=r'Validation')
+    plt.fill_between(epoch_list, lb[:,1], ub[:,1], facecolor=color_list[1], alpha=0.2)
+    plt.grid()
+    if sigma in [0, 4, 8]:
+        plt.title(r'FNO $(N=%d, d_{\mathrm{tr}}=%d, \sigma=%d)$' % (N_train, dd, stdev))
+    elif sigma in [2, 6]:
+        plt.title(r'FNO $(N=%d, d_{\mathrm{tr}}=%d, \sigma=%.1f)$' % (N_train, dd, stdev))
+    else:
+        plt.title(r'FNO $(N=%d, d_{\mathrm{tr}}=%d, \sigma=%.2f)$' % (N_train, dd, stdev))
+    plt.xlim(0, epochs)
+    plt.ylim(1e-3, 1.5)
+    plt.xlabel(r'Epoch')
+    plt.ylabel(r'Relative error')
+    plt.legend(ncol=1, loc='best').set_draggable(True)
+    if save_plots:
+        plt.savefig(plot_folder + "fno_epochs" + obj_suffix[:-3] + "pdf", format='pdf')
+
 # %% Robustness
 data_type = 'robustness/'
 N_train = 5000
