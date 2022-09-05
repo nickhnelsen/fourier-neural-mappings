@@ -198,16 +198,17 @@ class UnitGaussianNormalizer(object):
 
 #loss function with rel/abs Lp norm loss
 class LpLoss(object):
-    def __init__(self, d=2, p=2, size_average=True, reduction=True):
+    def __init__(self, d=2, p=2, size_average=True, reduction=True, eps=1e-6):
         super(LpLoss, self).__init__()
 
-        #Dimension and Lp-norm type are postive
-        assert d > 0 and p > 0
+        if not (d > 0 and p > 0):
+            raise ValueError("Dimension d and Lp-norm type p must be postive.")
 
         self.d = d
         self.p = p
         self.reduction = reduction
         self.size_average = size_average
+        self.eps =eps
 
     def abs(self, x, y):
         num_examples = x.size()[0]
@@ -230,6 +231,7 @@ class LpLoss(object):
 
         diff_norms = torch.norm(x.reshape(num_examples,-1) - y.reshape(num_examples,-1), self.p, 1)
         y_norms = torch.norm(y.reshape(num_examples,-1), self.p, 1)
+        y_norms += self.eps     # prevent divide by zero
 
         if self.reduction:
             if self.size_average:
@@ -245,16 +247,17 @@ class LpLoss(object):
 
 #loss function with rel/abs Lp norm to the p-th power loss
 class LppLoss(object):
-    def __init__(self, d=2, p=2, size_average=True, reduction=True):
+    def __init__(self, d=2, p=2, size_average=True, reduction=True, eps=1e-6):
         super(LppLoss, self).__init__()
 
-        #Dimension and Lp-norm type are postive
-        assert d > 0 and p > 0
+        if not (d > 0 and p > 0):
+            raise ValueError("Dimension d and Lp-norm type p must be postive.")
 
         self.d = d
         self.p = p
         self.reduction = reduction
         self.size_average = size_average
+        self.eps = eps
 
     def abs(self, x, y):
         num_examples = x.size()[0]
@@ -277,6 +280,7 @@ class LppLoss(object):
 
         diff_norms = torch.norm(x.reshape(num_examples,-1) - y.reshape(num_examples,-1), self.p, 1)**(self.p)
         y_norms = torch.norm(y.reshape(num_examples,-1), self.p, 1)**(self.p)
+        y_norms += self.eps     # prevent divide by zero
 
         if self.reduction:
             if self.size_average:
