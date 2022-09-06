@@ -97,6 +97,7 @@ def get_grid2d(shape, device):
     gridy = gridy.reshape(1, 1, size_y, 1).repeat([batchsize, size_x, 1, 1])
     return torch.cat((gridx, gridy), dim=-1).to(device)
 
+
 # TODO: 1d
 def projector2d(x, s=None):
     """
@@ -198,3 +199,5 @@ class LinearFunctionals2d(nn.Module):
             2*torch.sum(x[..., -self.modes1:, 1:], dim=(-2, -1)) - x[..., 0, 0]
 
         return x
+    
+# TODO: 1d and 2d neural decoders and neural vec2vec maps
