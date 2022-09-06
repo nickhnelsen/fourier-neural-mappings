@@ -212,6 +212,42 @@ class LinearFunctionals1d(nn.Module):
         return x
 
 
+class LinearDecoder1d(nn.Module):
+    def __init__(self, in_channels, out_channels, modes1, s):
+        """
+        Fourier neural decoder layer for functions over the torus. Maps vectors to functions.
+        Inputs:    
+            in_channels  (int): dimension of input vectors
+            out_channels (int): total number of functions to extract
+            s            (int): desired spatial resolution (nx,) of functions
+        """
+        super(LinearDecoder1d, self).__init__()
+
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.s = s
+
+        # Number of Fourier modes to multiply, at most floor(N/2) + 1
+        self.modes1 = modes1 
+
+        self.scale = 1. / (self.in_channels * self.out_channels)
+        self.weights = nn.Parameter(self.scale * torch.rand(self.in_channels, self.out_channels, self.modes1 + 1, dtype=torch.cfloat))
+
+    def forward(self, x):
+        """
+        Input shape (of x):     (batch, in_channels)
+        Output shape:           (batch, out_channels, nx)
+        """
+        # Multiply relevant Fourier modes
+        x = compl_mul(x.type(torch.cfloat), self.weights)
+        
+        # Zero pad modes
+        x = resize_rfft(x, self.s)
+        
+        # Return to physical space
+        return fft.irfft(x, n=self.s)
+    
+
 ################################################################
 #
 # 2d Fourier layers
@@ -305,13 +341,13 @@ class LinearFunctionals2d(nn.Module):
     
 
 class LinearDecoder2d(nn.Module):
-    def __init__(self, in_channels, out_channels, modes1, modes2, s=None):
+    def __init__(self, in_channels, out_channels, modes1, modes2, s):
         """
         Fourier neural decoder layer for functions over the torus. Maps vectors to functions.
         Inputs:    
             in_channels  (int): dimension of input vectors
             out_channels (int): total number of functions to extract
-            s:                  (list or tuple, length 2): desired spatial resolution (s,s) of functions
+            s (list or tuple, length 2): desired spatial resolution (nx,ny) of functions
         """
         super(LinearDecoder2d, self).__init__()
 
@@ -324,22 +360,18 @@ class LinearDecoder2d(nn.Module):
         self.modes2 = modes2
 
         self.scale = 1. / (self.in_channels * self.out_channels)
-        self.weights1 = nn.Parameter(self.scale * torch.rand(self.in_channels, self.out_channels, self.modes1, self.modes2, dtype=torch.cfloat))
-        self.weights2 = nn.Parameter(self.scale * torch.rand(self.in_channels, self.out_channels, self.modes1, self.modes2, dtype=torch.cfloat))
+        self.weights = nn.Parameter(self.scale * torch.rand(self.in_channels, self.out_channels, 2*self.modes1, self.modes2 + 1, dtype=torch.cfloat))
 
     def forward(self, x):
         """
         Input shape (of x):     (batch, in_channels)
-        Output shape:           (batch, out_channels, nx_in, ny_in)
+        Output shape:           (batch, out_channels, nx, ny)
         """
         # Multiply relevant Fourier modes
-        out_ft = torch.zeros(x.shape[0], self.out_channels, self.s[-2], self.s[-1]//2 + 1, dtype=torch.cfloat, device=x.device)
-        out_ft[:, :, :self.modes1, :self.modes2] = \
-            compl_mul(x, self.weights1)
-        out_ft[:, :, -self.modes1:, :self.modes2] = \
-            compl_mul(x, self.weights2)
-
+        x = compl_mul(x.type(torch.cfloat), self.weights)
+        
+        # Zero pad modes
+        x = resize_rfft2(x, tuple(self.s))
+        
         # Return to physical space
-        return fft.irfft2(out_ft, s=self.s)
-    
-# TODO: 1d and 2d neural decoders and neural vec2vec maps
+        return fft.irfft2(x, s=self.s)
