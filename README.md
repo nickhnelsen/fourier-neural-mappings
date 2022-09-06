@@ -1,5 +1,5 @@
 # FourierNeuralMappings
-Fourier Neural Mappings (FNM) generalize Fourier Neural Operators (FNO) by allowing the input space and/or the output space to be finite-dimensional (instead of both being purely infinite-dimensional function spaces as with FNO). This is especially relevant for surrogate modeling tasks in uncertianty quantitifation, inverse problems, and design optimization, where a finite number of quantities of interest (QoI) characterize the inputs and/or outputs.
+Fourier Neural Mappings (FNM) generalize Fourier Neural Operators (FNO) by allowing the input space and/or the output space to be finite-dimensional (instead of both being purely infinite-dimensional function spaces as with FNO). This is especially relevant for surrogate modeling tasks in uncertainty quantification, inverse problems, and design optimization, where a finite number of quantities of interest (QoI) characterize the inputs and/or outputs.
 
 In particular, FNMs work for
 * nonlinear functionals: Fourier Neural Functionals (FNF) mapping functions to vectors;
