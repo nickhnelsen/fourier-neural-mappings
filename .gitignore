@@ -145,11 +145,12 @@ z_*
 *.out
 # *.pt
 
-# FNF
+# FNM
 **/R-*
+**/r-*
+**/e-*
+**/s-*
 **/errors.pt
 **/model_*
-**/job_*
 **/figures
 **/results
-**/characterizing_approximations.ipynb

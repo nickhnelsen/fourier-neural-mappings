@@ -1,10 +1,10 @@
 import torch
 import numpy as np
-import os, sys; sys.path.append(os.path.join('..', 'util'))
+import os, sys; sys.path.append(os.path.join('../..'))
 from timeit import default_timer
 
 from models import FNO2d
-from utilities_module import LpLoss, LppLoss, count_params, validate, dataset_with_indices
+from util.utilities_module import LpLoss, LppLoss, count_params, validate, dataset_with_indices
 from torch.utils.data import TensorDataset, DataLoader
 TensorDatasetID = dataset_with_indices(TensorDataset)
 

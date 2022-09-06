@@ -17,57 +17,10 @@ import hdf5storage
 #
 #################################################
 
-def resize_rfft(ar, s):
-    """
-    Truncates or zero pads the highest frequencies of ``ar'' such that torch.fft.irfft(ar, n=s) is either an interpolation to a finer grid or a subsampling to a coarser grid.
-    Args
-        ar: (..., N) tensor, must satisfy real conjugate symmetry (not checked)
-        s: (int), desired irfft output dimension >= 1
-    Output
-        out: (..., s//2 + 1) tensor
-    """
-    N = ar.shape[-1]
-    s = s//2 + 1 if s >=1 else s//2
-    if s >= N: # zero pad or leave alone
-        out = torch.zeros(list(ar.shape[:-1]) + [s - N], dtype=torch.cfloat, device=ar.device)
-        out = torch.cat((ar[..., :N], out), dim=-1)
-    elif s >= 1: # truncate
-        out = ar[..., :s]
-    else: # edge case
-        raise ValueError("s must be greater than or equal to 1.")
-
-    return out
-
-
-def resize_fft(ar, s):
-    """
-    Truncates or zero pads the highest frequencies of ``ar'' such that torch.fft.ifft(ar, n=s) is either an interpolation to a finer grid or a subsampling to a coarser grid.
-    Reference: https://github.com/numpy/numpy/pull/7593
-    Args
-        ar: (..., N) tensor
-        s: (int), desired ifft output dimension >= 1
-    Output
-        out: (..., s) tensor
-    """
-    N = ar.shape[-1]
-    if s >= N: # zero pad or leave alone
-        out = torch.zeros(list(ar.shape[:-1]) + [s - N], dtype=torch.cfloat, device=ar.device)
-        out = torch.cat((ar[..., :N//2], out, ar[..., N//2:]), dim=-1)
-    elif s >= 2: # truncate modes
-        if s % 2: # odd
-            out = torch.cat((ar[..., :s//2 + 1], ar[..., -s//2 + 1:]), dim=-1)
-        else: # even
-            out = torch.cat((ar[..., :s//2], ar[..., -s//2:]), dim=-1)
-    else: # edge case s = 1
-        if s < 1:
-            raise ValueError("s must be greater than or equal to 1.")
-        else:
-            out = ar[..., 0:1]
-
-    return out
-
-
 def to_torch(x, to_float=True):
+    """
+    send input numpy array to single precision torch tensor
+    """
     if to_float:
         if np.iscomplexobj(x):
             x = x.astype(np.complex64)
@@ -92,11 +45,11 @@ def validate(f, fhat):
     return np.linalg.norm(f-fhat) / np.linalg.norm(f)
 
 
-# Reference: https://discuss.pytorch.org/t/how-to-retrieve-the-sample-indices-of-a-mini-batch/7948/19
 def dataset_with_indices(cls):
     """
     Modifies the given Dataset class to return a tuple data, target, index
     instead of just data, target.
+    # Reference: https://discuss.pytorch.org/t/how-to-retrieve-the-sample-indices-of-a-mini-batch/7948/19
     """
 
     def __getitem__(self, index):
@@ -106,8 +59,10 @@ def dataset_with_indices(cls):
     return type(cls.__name__, (cls,), {'__getitem__': __getitem__,})
 
 
-# reading data
 class MatReader(object):
+    """
+    reading data
+    """
     def __init__(self, file_path, to_torch=True, to_cuda=False, to_float=True,
                  variable_names=None):
         super(MatReader, self).__init__()
@@ -157,8 +112,10 @@ class MatReader(object):
         self.to_float = to_float
 
 
-# normalization, pointwise gaussian
 class UnitGaussianNormalizer(object):
+    """
+    normalization, pointwise gaussian
+    """
     def __init__(self, x, eps=1e-6):
         super(UnitGaussianNormalizer, self).__init__()
 
@@ -196,8 +153,10 @@ class UnitGaussianNormalizer(object):
         self.std = self.std.cpu()
 
 
-#loss function with rel/abs Lp norm loss
 class LpLoss(object):
+    """
+    loss function with rel/abs Lp norm loss
+    """
     def __init__(self, d=2, p=2, size_average=True, reduction=True, eps=1e-6):
         super(LpLoss, self).__init__()
 
@@ -245,8 +204,10 @@ class LpLoss(object):
         return self.rel(x, y)
 
 
-#loss function with rel/abs Lp norm to the p-th power loss
 class LppLoss(object):
+    """
+    loss function with rel/abs Lp norm to the p-th power loss
+    """
     def __init__(self, d=2, p=2, size_average=True, reduction=True, eps=1e-6):
         super(LppLoss, self).__init__()
 
@@ -294,8 +255,10 @@ class LppLoss(object):
         return self.rel(x, y)
 
 
-# print the number of parameters
 def count_params(model):
+    """
+    print the number of parameters
+    """
     c = 0
     for p in list(model.parameters()):
         c += reduce(operator.mul,
