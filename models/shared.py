@@ -135,7 +135,7 @@ def projector2d(x, s=None):
 class SpectralConv1d(nn.Module):
     def __init__(self, in_channels, out_channels, modes1):
         """
-        Fourier integral operator layer defined for functions over the torus
+        Fourier integral operator layer defined for functions over the torus. Maps functions to functions.
         """
         super(SpectralConv1d, self).__init__()
 
@@ -175,7 +175,7 @@ class SpectralConv1d(nn.Module):
 class LinearFunctionals1d(nn.Module):
     def __init__(self, in_channels, out_channels, modes1):
         """
-        Fourier neural functionals layer for functions over the torus
+        Fourier neural functionals (encoder) layer for functions over the torus. Maps functions to vectors.
         Inputs:    
             in_channels  (int): number of input functions
             out_channels (int): total number of linear functionals to extract
@@ -220,7 +220,7 @@ class LinearFunctionals1d(nn.Module):
 class SpectralConv2d(nn.Module):
     def __init__(self, in_channels, out_channels, modes1, modes2):
         """
-        Fourier integral operator layer defined for functions over the torus
+        Fourier integral operator layer defined for functions over the torus. Maps functions to functions.
         """
         super(SpectralConv2d, self).__init__()
 
@@ -265,7 +265,7 @@ class SpectralConv2d(nn.Module):
 class LinearFunctionals2d(nn.Module):
     def __init__(self, in_channels, out_channels, modes1, modes2):
         """
-        Fourier neural functionals layer for functions over the torus
+        Fourier neural functionals (encoder) layer for functions over the torus. Maps functions to vectors.
         Inputs:    
             in_channels  (int): number of input functions
             out_channels (int): total number of linear functionals to extract
@@ -302,5 +302,44 @@ class LinearFunctionals2d(nn.Module):
             2*torch.sum(x[..., -self.modes1:, 1:], dim=(-2, -1)) - x[..., 0, 0]
 
         return x
+    
+
+class LinearDecoder2d(nn.Module):
+    def __init__(self, in_channels, out_channels, modes1, modes2, s=None):
+        """
+        Fourier neural decoder layer for functions over the torus. Maps vectors to functions.
+        Inputs:    
+            in_channels  (int): dimension of input vectors
+            out_channels (int): total number of functions to extract
+            s:                  (list or tuple, length 2): desired spatial resolution (s,s) of functions
+        """
+        super(LinearDecoder2d, self).__init__()
+
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.s = s
+
+        # Number of Fourier modes to multiply, at most floor(N/2) + 1
+        self.modes1 = modes1 
+        self.modes2 = modes2
+
+        self.scale = 1. / (self.in_channels * self.out_channels)
+        self.weights1 = nn.Parameter(self.scale * torch.rand(self.in_channels, self.out_channels, self.modes1, self.modes2, dtype=torch.cfloat))
+        self.weights2 = nn.Parameter(self.scale * torch.rand(self.in_channels, self.out_channels, self.modes1, self.modes2, dtype=torch.cfloat))
+
+    def forward(self, x):
+        """
+        Input shape (of x):     (batch, in_channels)
+        Output shape:           (batch, out_channels, nx_in, ny_in)
+        """
+        # Multiply relevant Fourier modes
+        out_ft = torch.zeros(x.shape[0], self.out_channels, self.s[-2], self.s[-1]//2 + 1, dtype=torch.cfloat, device=x.device)
+        out_ft[:, :, :self.modes1, :self.modes2] = \
+            compl_mul(x, self.weights1)
+        out_ft[:, :, -self.modes1:, :self.modes2] = \
+            compl_mul(x, self.weights2)
+
+        # Return to physical space
+        return fft.irfft2(out_ft, s=self.s)
     
 # TODO: 1d and 2d neural decoders and neural vec2vec maps
