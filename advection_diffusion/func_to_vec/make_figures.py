@@ -1,5 +1,5 @@
 import numpy as np
-import os, sys; sys.path.append(os.path.join('..', 'util'))
+import os, sys; sys.path.append(os.path.join('../..', 'util'))
 
 from configure_plots import plt
 
