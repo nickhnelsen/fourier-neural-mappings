@@ -132,7 +132,6 @@ def projector2d(x, s=None):
 # 1d Fourier layers
 #
 ################################################################
-# TODO: allow input shape (batch, channels, ..., nx_in)
 class SpectralConv1d(nn.Module):
     def __init__(self, in_channels, out_channels, modes1):
         """
@@ -151,17 +150,19 @@ class SpectralConv1d(nn.Module):
 
     def forward(self, x, s=None):
         """
-        Input shape (of x):     (batch, channels, nx_in)
+        Input shape (of x):     (batch, channels, ..., nx_in)
         s:                      (int): desired spatial resolution (s,) in output space
         """
         # Original resolution
-        xsize = x.shape[-1]
+        out_ft = list(x.shape)
+        out_ft[1] = self.out_channels
+        xsize = out_ft[-1]
         
         # Compute Fourier coeffcients (un-scaled)
         x = fft.rfft(x)
 
         # Multiply relevant Fourier modes
-        out_ft = torch.zeros(x.shape[0], self.out_channels, xsize//2 + 1, dtype=torch.cfloat, device=x.device)
+        out_ft = torch.zeros(*out_ft[:-1], xsize//2 + 1, dtype=torch.cfloat, device=x.device)
         out_ft[..., :self.modes1] = compl_mul(x[..., :self.modes1], self.weights1)
 
         # Return to physical space
@@ -251,7 +252,6 @@ class LinearDecoder1d(nn.Module):
 # 2d Fourier layers
 #
 ################################################################
-# TODO: allow input shape (batch, channels, ..., nx_in, ny_in)
 class SpectralConv2d(nn.Module):
     def __init__(self, in_channels, out_channels, modes1, modes2):
         """
@@ -272,17 +272,19 @@ class SpectralConv2d(nn.Module):
 
     def forward(self, x, s=None):
         """
-        Input shape (of x):     (batch, channels, nx_in, ny_in)
+        Input shape (of x):     (batch, channels, ..., nx_in, ny_in)
         s:                      (list or tuple, length 2): desired spatial resolution (s,s) in output space
         """
         # Original resolution
-        xsize = x.shape[-2:]
-        
+        out_ft = list(x.shape)
+        out_ft[1] = self.out_channels
+        xsize = out_ft[-2:]
+
         # Compute Fourier coeffcients (un-scaled)
         x = fft.rfft2(x)
 
         # Multiply relevant Fourier modes
-        out_ft = torch.zeros(x.shape[0], self.out_channels, xsize[-2], xsize[-1]//2 + 1, dtype=torch.cfloat, device=x.device)
+        out_ft = torch.zeros(*out_ft[:-2], xsize[-2], xsize[-1]//2 + 1, dtype=torch.cfloat, device=x.device)
         out_ft[..., :self.modes1, :self.modes2] = \
             compl_mul(x[..., :self.modes1, :self.modes2], self.weights1)
         out_ft[..., -self.modes1:, :self.modes2] = \
