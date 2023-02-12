@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .shared import SpectralConv1d, LinearFunctionals1d, get_grid1d
+from .shared import SpectralConv1d, LinearFunctionals1d, get_grid1d, _get_act, MLP
 
 
 class FNF1d(nn.Module):
@@ -16,7 +16,8 @@ class FNF1d(nn.Module):
                  padding=8,
                  d_in=1,
                  d_out=1,
-                 width_lfunc=None
+                 width_lfunc=None,
+                 act='gelu'
                  ):
         """
         modes1          (int): Fourier mode truncation levels
@@ -26,6 +27,7 @@ class FNF1d(nn.Module):
         d_in            (int): number of input channels (NOT including grid input features)
         d_out           (int): finite number of desired outputs (number of functionals)
         width_lfunc     (int): number of intermediate linear functionals to extract in FNF layer
+        act             (str): Activation function = tanh, relu, gelu, elu, or leakyrelu
         """
         super(FNF1d, self).__init__()
 
@@ -40,6 +42,7 @@ class FNF1d(nn.Module):
             self.width_lfunc = self.width
         else:
             self.width_lfunc = width_lfunc
+        self.act = _get_act(act)
         
         self.fc0 = nn.Linear(self.d_in + self.d_physical, self.width)
 
@@ -53,8 +56,7 @@ class FNF1d(nn.Module):
         
         self.lfunc0 = LinearFunctionals1d(self.width, self.width_lfunc, self.modes1)
 
-        self.fc1 = nn.Linear(self.width_lfunc, self.width_final)
-        self.fc2 = nn.Linear(self.width_final, self.d_out)
+        self.mlp0 = MLP(self.width_lfunc, self.width_final, self.d_out, act)
 
     def forward(self, x):
         """
@@ -74,20 +76,18 @@ class FNF1d(nn.Module):
 
         # Fourier integral operator layers on the torus
         x = self.w0(x) + self.conv0(x)
-        x = F.gelu(x)
+        x = self.act(x)
 
         x = self.w1(x) + self.conv1(x)
-        x = F.gelu(x)
+        x = self.act(x)
 
         x = self.w2(x) + self.conv2(x)
-        x = F.gelu(x)
+        x = self.act(x)
 
         # Extract Fourier neural functionals on the torus
         x = self.lfunc0(x)
         
         # Final projection layer
-        x = self.fc1(x)
-        x = F.gelu(x)
-        x = self.fc2(x)
+        x = self.mlp0(x)
 
         return x

@@ -1,6 +1,48 @@
 import torch
 import torch.nn as nn
 import torch.fft as fft
+import torch.nn.functional as F
+
+
+def _get_act(act):
+    """
+    https://github.com/NeuralOperator/PINO/blob/master/models/utils.py
+    """
+    if act == 'tanh':
+        func = F.tanh
+    elif act == 'gelu':
+        func = F.gelu
+    elif act == 'relu':
+        func = F.relu_
+    elif act == 'elu':
+        func = F.elu_
+    elif act == 'leaky_relu':
+        func = F.leaky_relu_
+    else:
+        raise ValueError(f'{act} is not supported')
+    return func
+
+
+class MLP(nn.Module):
+    """
+    Pointwise single hidden layer fully-connected neural network applied to last axis of input
+    """
+    def __init__(self, channels_in, channels_hid, channels_out, act='gelu'):
+        super(MLP, self).__init__()
+        
+        self.fc1 = nn.Linear(channels_in, channels_hid)
+        self.act = _get_act(act)
+        self.fc2 = nn.Linear(channels_hid, channels_out)
+
+    def forward(self, x):
+        """
+        Input shape (of x):     (..., channels_in)
+        Output shape:           (..., channels_out)
+        """
+        x = self.fc1(x)
+        x = self.act(x)
+        x = self.fc2(x)
+        return x
 
 
 def compl_mul(input_tensor, weights):

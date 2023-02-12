@@ -1,8 +1,6 @@
-import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
-from .shared import SpectralConv2d, LinearDecoder2d, LinearFunctionals2d
+from .shared import SpectralConv2d, LinearDecoder2d, LinearFunctionals2d, _get_act, MLP
 
 
 class FNN2d(nn.Module):
@@ -17,7 +15,8 @@ class FNN2d(nn.Module):
                  width_initial=128,
                  width_final=128,
                  width_ldec=None,
-                 width_lfunc=None
+                 width_lfunc=None,
+                 act='gelu'
                  ):
         """
         d_in            (int): number of input channels (dimension of input vectors)
@@ -29,6 +28,7 @@ class FNN2d(nn.Module):
         width_final     (int): width of the final projection layer
         width_ldec      (int): input channel width for FND layer
         width_lfunc     (int): number of intermediate linear functionals to extract in FNF layer
+        act             (str): Activation function = tanh, relu, gelu, elu, or leakyrelu
         """
         super(FNN2d, self).__init__()
 
@@ -48,9 +48,9 @@ class FNN2d(nn.Module):
             self.width_lfunc = self.width
         else:
             self.width_lfunc = width_lfunc
+        self.act = _get_act(act)
         
-        self.fc0 = nn.Linear(self.d_in, self.width_initial)
-        self.fc1 = nn.Linear(self.width_initial, self.width_ldec)
+        self.mlp0 = MLP(self.d_in, self.width_initial, self.width_ldec, act)
         
         self.ldec0 = LinearDecoder2d(self.width_ldec, self.width, self.modes1, self.modes2)
         
@@ -62,8 +62,7 @@ class FNN2d(nn.Module):
         
         self.lfunc0 = LinearFunctionals2d(self.width, self.width_lfunc, self.modes1, self.modes2)
         
-        self.fc2 = nn.Linear(self.width_lfunc, self.width_final)
-        self.fc3 = nn.Linear(self.width_final, self.d_out)
+        self.mlp1 = MLP(self.width_lfunc, self.width_final, self.d_out, act)
 
     def forward(self, x):
         """
@@ -71,27 +70,23 @@ class FNN2d(nn.Module):
         Output shape:           (batch, self.d_out)
         """
         # Nonlinear processing layer
-        x = self.fc0(x)
-        x = F.gelu(x)
-        x = self.fc1(x)
+        x = self.mlp0(x)
         
         # Decode into functions on the torus
         x = self.ldec0(x, self.s_latentspace)
 
         # Fourier integral operator layers on the torus
         x = self.w0(x) + self.conv0(x)
-        x = F.gelu(x)
+        x = self.act(x)
 
         x = self.w1(x) + self.conv1(x)
-        x = F.gelu(x)
+        x = self.act(x)
 
         # Extract Fourier neural functionals on the torus
         x = self.lfunc0(x)
         
         # Final projection layer
-        x = self.fc2(x)
-        x = F.gelu(x)
-        x = self.fc3(x)
+        x = self.mlp1(x)
 
         return x
     
