@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .shared import SpectralConv2d, projector2d, get_grid2d
+from .shared import SpectralConv2d, projector2d, get_grid2d, _get_act, MLP
 
 
 class FNO2d(nn.Module):
@@ -17,7 +17,8 @@ class FNO2d(nn.Module):
                  width_final=128,
                  padding=8,
                  d_in=2, # TODO: adjust default to 1, check this does not break train scripts
-                 d_out=1
+                 d_out=1,
+                 act='gelu'
                  ):
         """
         modes1, modes2  (int): Fourier mode truncation levels
@@ -27,6 +28,7 @@ class FNO2d(nn.Module):
         padding         (int or float): (1.0/padding) is fraction of domain to zero pad (non-periodic)
         d_in            (int): number of input channels (NOT including grid input features)
         d_out           (int): number of output channels (co-domain dimension of output space functions)
+        act             (str): Activation function = tanh, relu, gelu, elu, or leakyrelu
         """
         super(FNO2d, self).__init__()
 
@@ -37,7 +39,8 @@ class FNO2d(nn.Module):
         self.width_final = width_final
         self.padding = padding
         self.d_in = d_in
-        self.d_out = d_out 
+        self.d_out = d_out
+        self.act = _get_act(act)
         
         self.set_outputspace_resolution(s_outputspace)
 
@@ -53,8 +56,7 @@ class FNO2d(nn.Module):
         self.w2 = nn.Conv2d(self.width, self.width, 1)
         self.w3 = nn.Conv2d(self.width, self.width, 1)
 
-        self.fc1 = nn.Linear(self.width, self.width_final)
-        self.fc2 = nn.Linear(self.width_final, self.d_out)
+        self.mlp0 = MLP(self.width, self.width_final, self.d_out, act)
 
     def forward(self, x):
         """
@@ -76,13 +78,13 @@ class FNO2d(nn.Module):
 
         # Fourier integral operator layers on the torus
         x = self.w0(x) + self.conv0(x)
-        x = F.gelu(x)
+        x = self.act(x)
 
         x = self.w1(x) + self.conv1(x)
-        x = F.gelu(x)
+        x = self.act(x)
 
         x = self.w2(x) + self.conv2(x)
-        x = F.gelu(x)
+        x = self.act(x)
 
         # Change resolution in function space consistent way
         x = self.w3(projector2d(x, s=self.s_outputspace)) + self.conv3(x, s=self.s_outputspace)
@@ -95,9 +97,7 @@ class FNO2d(nn.Module):
         
         # Final projection layer
         x = x.permute(0, 2, 3, 1)
-        x = self.fc1(x)
-        x = F.gelu(x)
-        x = self.fc2(x)
+        x = self.mlp0(x)
 
         return x.permute(0, 3, 1, 2)
 

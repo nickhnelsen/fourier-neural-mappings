@@ -1,6 +1,48 @@
 import torch
 import torch.nn as nn
 import torch.fft as fft
+import torch.nn.functional as F
+
+
+def _get_act(act):
+    """
+    https://github.com/NeuralOperator/PINO/blob/master/models/utils.py
+    """
+    if act == 'tanh':
+        func = F.tanh
+    elif act == 'gelu':
+        func = F.gelu
+    elif act == 'relu':
+        func = F.relu_
+    elif act == 'elu':
+        func = F.elu_
+    elif act == 'leaky_relu':
+        func = F.leaky_relu_
+    else:
+        raise ValueError(f'{act} is not supported')
+    return func
+
+
+class MLP(nn.Module):
+    """
+    Pointwise single hidden layer fully-connected neural network applied to last axis of input
+    """
+    def __init__(self, channels_in, channels_hid, channels_out, act='gelu'):
+        super(MLP, self).__init__()
+        
+        self.fc1 = nn.Linear(channels_in, channels_hid)
+        self.act = _get_act(act)
+        self.fc2 = nn.Linear(channels_hid, channels_out)
+
+    def forward(self, x):
+        """
+        Input shape (of x):     (..., channels_in)
+        Output shape:           (..., channels_out)
+        """
+        x = self.fc1(x)
+        x = self.act(x)
+        x = self.fc2(x)
+        return x
 
 
 def compl_mul(input_tensor, weights):
@@ -132,7 +174,6 @@ def projector2d(x, s=None):
 # 1d Fourier layers
 #
 ################################################################
-# TODO: allow input shape (batch, channels, ..., nx_in)
 class SpectralConv1d(nn.Module):
     def __init__(self, in_channels, out_channels, modes1):
         """
@@ -151,17 +192,19 @@ class SpectralConv1d(nn.Module):
 
     def forward(self, x, s=None):
         """
-        Input shape (of x):     (batch, channels, nx_in)
+        Input shape (of x):     (batch, channels, ..., nx_in)
         s:                      (int): desired spatial resolution (s,) in output space
         """
         # Original resolution
-        xsize = x.shape[-1]
+        out_ft = list(x.shape)
+        out_ft[1] = self.out_channels
+        xsize = out_ft[-1]
         
         # Compute Fourier coeffcients (un-scaled)
         x = fft.rfft(x)
 
         # Multiply relevant Fourier modes
-        out_ft = torch.zeros(x.shape[0], self.out_channels, xsize//2 + 1, dtype=torch.cfloat, device=x.device)
+        out_ft = torch.zeros(*out_ft[:-1], xsize//2 + 1, dtype=torch.cfloat, device=x.device)
         out_ft[..., :self.modes1] = compl_mul(x[..., :self.modes1], self.weights1)
 
         # Return to physical space
@@ -251,7 +294,6 @@ class LinearDecoder1d(nn.Module):
 # 2d Fourier layers
 #
 ################################################################
-# TODO: allow input shape (batch, channels, ..., nx_in, ny_in)
 class SpectralConv2d(nn.Module):
     def __init__(self, in_channels, out_channels, modes1, modes2):
         """
@@ -272,17 +314,19 @@ class SpectralConv2d(nn.Module):
 
     def forward(self, x, s=None):
         """
-        Input shape (of x):     (batch, channels, nx_in, ny_in)
+        Input shape (of x):     (batch, channels, ..., nx_in, ny_in)
         s:                      (list or tuple, length 2): desired spatial resolution (s,s) in output space
         """
         # Original resolution
-        xsize = x.shape[-2:]
-        
+        out_ft = list(x.shape)
+        out_ft[1] = self.out_channels
+        xsize = out_ft[-2:]
+
         # Compute Fourier coeffcients (un-scaled)
         x = fft.rfft2(x)
 
         # Multiply relevant Fourier modes
-        out_ft = torch.zeros(x.shape[0], self.out_channels, xsize[-2], xsize[-1]//2 + 1, dtype=torch.cfloat, device=x.device)
+        out_ft = torch.zeros(*out_ft[:-2], xsize[-2], xsize[-1]//2 + 1, dtype=torch.cfloat, device=x.device)
         out_ft[..., :self.modes1, :self.modes2] = \
             compl_mul(x[..., :self.modes1, :self.modes2], self.weights1)
         out_ft[..., -self.modes1:, :self.modes2] = \
