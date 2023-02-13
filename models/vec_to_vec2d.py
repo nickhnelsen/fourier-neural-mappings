@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 
 from .shared import SpectralConv2d, LinearDecoder2d, LinearFunctionals2d, _get_act, MLP
@@ -61,8 +62,10 @@ class FNN2d(nn.Module):
         self.w1 = nn.Conv2d(self.width, self.width, 1)
         
         self.lfunc0 = LinearFunctionals2d(self.width, self.width_lfunc, self.modes1, self.modes2)
-        
-        self.mlp1 = MLP(self.width_lfunc, self.width_final, self.d_out, act)
+        self.mlpfunc0 = MLP(self.width, self.width_final, self.width_lfunc, act)
+
+        # Expand the hidden dim by 2 because the input is also twice as large
+        self.mlp1 = MLP(2*self.width_lfunc, 2*self.width_final, self.d_out, act)
 
     def forward(self, x):
         """
@@ -83,7 +86,17 @@ class FNN2d(nn.Module):
         x = self.act(x)
 
         # Extract Fourier neural functionals on the torus
-        x = self.lfunc0(x)
+        x_temp = self.lfunc0(x)
+
+        # Retain the truncated modes (use all modes)
+        x = x.permute(0, 2, 3, 1)        
+        x = self.mlpfunc0(x)
+        x = x.permute(0, 3, 1, 2)
+        x = torch.trapz(x, dx=1./x.shape[-1])
+        x = torch.trapz(x, dx=1./x.shape[-1])
+        
+        # Combine nonlocal and local features
+        x = torch.cat((x_temp, x), dim=1)
         
         # Final projection layer
         x = self.mlp1(x)
