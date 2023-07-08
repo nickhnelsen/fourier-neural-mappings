@@ -15,7 +15,7 @@ def trapz2(x, dx, dy=None):
 
 def get_qoi(y):
     """
-    Extract all 6 QoIs from final time solutionm state on [0,1]^2
+    Extract all 6 QoIs from final time solution state on [0,1]^2
     Input
         y:      (..., nx1, nx2)
     Output

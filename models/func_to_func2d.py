@@ -16,7 +16,7 @@ class FNO2d(nn.Module):
                  s_outputspace=None,
                  width_final=128,
                  padding=8,
-                 d_in=2, # TODO: adjust default to 1, check this does not break train scripts
+                 d_in=1,
                  d_out=1,
                  act='gelu'
                  ):

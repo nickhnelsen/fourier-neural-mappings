@@ -15,7 +15,7 @@ class FNF2d(nn.Module):
                  width=32,
                  width_final=128,
                  padding=8,
-                 d_in=2, # TODO: adjust default to 1, check this does not break train scripts
+                 d_in=1,
                  d_out=1,
                  width_lfunc=None,
                  act='gelu'
