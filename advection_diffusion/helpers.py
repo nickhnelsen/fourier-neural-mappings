@@ -33,8 +33,8 @@ def get_qoi(y):
     qoi[...,0] = y[..., idx_qoi[-2], idx_qoi[-1]]
 
     # QoI 1: mean
-    y_bar = trapz2(y, dx=dx1, dy=dx2)[:,None,None]
-    qoi[...,1] = y_bar.squeeze()
+    y_bar = trapz2(y, dx=dx1, dy=dx2)[...,None,None]
+    qoi[...,1] = y_bar[...,0,0]
     
     # QoI 2: standard deviation
     y_std = torch.sqrt(trapz2((y - y_bar)**2, dx=dx1, dy=dx2))
