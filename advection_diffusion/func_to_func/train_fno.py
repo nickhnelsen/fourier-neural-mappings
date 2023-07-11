@@ -22,7 +22,7 @@ save_prefix = sys.argv[1]   # e.g., 'modelsize/', 'scalability/', 'efficiency/'
 data_suffix = sys.argv[2]   # e.g., 'nu_inf_ell_p05_torch/' or 'nu_1p5_ell_p25_torch/'
 N_train = int(sys.argv[3])  # training sample size
 d_str = sys.argv[4]         # KLE dimension of training inputs (d = 1, 2, 5, 10, 15, 20, or 1000)
-FNM_model = sys.argv[5]     # 'FNO2d', etc
+FNM_model = sys.argv[5]     # model name: 'FNO2d', etc
 FNM_modes = int(sys.argv[6])
 FNM_width = int(sys.argv[7])
 
@@ -156,7 +156,6 @@ for loop in range(N_MC):
                                                 step_size=scheduler_step,
                                                 gamma=scheduler_gamma)
         
-    # errors = torch.zeros((epochs, 2))
     errors = torch.zeros((epochs, 2 + 2 + 2*N_qoi))
     errors_all.append(errors.numpy())
     
