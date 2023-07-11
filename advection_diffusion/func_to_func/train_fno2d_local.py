@@ -3,7 +3,7 @@ import numpy as np
 import os, sys; sys.path.append(os.path.join('../..'))
 from timeit import default_timer
 
-from models import FNO2d
+from models import FNO2d as my_model
 from util import Adam
 from util.utilities_module import LpLoss, LppLoss, count_params, validate, dataset_with_indices
 from torch.utils.data import TensorDataset, DataLoader
@@ -105,7 +105,7 @@ test_loader = DataLoader(TensorDataset(x_test, y_test), batch_size=batch_size, s
 ################################################################
 s_outputspace = tuple(y_train.shape[-2:])   # same output shape as the output dataset
 
-model = FNO2d(modes1, modes2, width, s_outputspace, d_in=d_in).to(device)
+model = my_model(modes1, modes2, width, s_outputspace, d_in=d_in).to(device)
 print("FNO parameter count:", count_params(model))
 
 optimizer = Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
