@@ -17,19 +17,20 @@ def get_qoi(y):
     """
     Extract all 6 QoIs from final time solution state on [0,1]^2
     Input
-        y:      (..., nx1, nx2)
+        y:      (..., nx1, nx2) torch tensor
     Output
-        qoi:    (..., 6)
+        qoi:    (..., 6) torch tensor
     """
     N_qoi = 6
-    qoi = torch.zeros(*y.shape[:-2], N_qoi)
+    dev = y.device
+    qoi = torch.zeros(*y.shape[:-2], N_qoi, device=dev)
 
     s = y.shape[-2:]
     dx1 = 1. / (s[0] - 1)
     dx2 = 1. / (s[1] - 1)
 
     # QoI 0: point evaluation at the center of the square    
-    idx_qoi = torch.div(torch.tensor(s), 2, rounding_mode="floor")
+    idx_qoi = torch.div(torch.tensor(s, device=dev), 2, rounding_mode="floor")
     qoi[...,0] = y[..., idx_qoi[-2], idx_qoi[-1]]
 
     # QoI 1: mean
