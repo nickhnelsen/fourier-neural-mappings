@@ -79,8 +79,7 @@ os.makedirs(savepath, exist_ok=True)
 y_train_all = torch.load(data_folder + 'velocity.pt')['velocity'][:,::sub_in].clone()
 N_max, s = y_train_all.shape
 assert N_train <= N_max
-x_train_all = torch.zeros(N_max, 1, s)
-x_train_all[:, 0, :] = y_train_all
+x_train_all = y_train_all.unsqueeze(1)
 y_train_all = torch.load(data_folder + 'state.pt')['state'][:,::sub_out,::sub_out].clone()
     
 # Training objects
