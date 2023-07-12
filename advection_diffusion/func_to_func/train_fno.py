@@ -9,7 +9,7 @@ from util.utilities_module import LpLoss, LppLoss, count_params, validate, datas
 from torch.utils.data import TensorDataset, DataLoader
 TensorDatasetID = dataset_with_indices(TensorDataset)
 
-from advection_diffusion.helpers import get_qoi, trapz2
+from advection_diffusion.helpers import get_qoi, trapz2, process_velocity
 
 ################################################################
 #
@@ -25,9 +25,16 @@ d_str = sys.argv[4]         # KLE dimension of training inputs (d = 1, 2, 5, 10,
 FNM_model = sys.argv[5]     # model name: 'FNO2d', etc
 FNM_modes = int(sys.argv[6])
 FNM_width = int(sys.argv[7])
+FNM_layers = int(sys.argv[8])
 
 # Import FNO model
 my_model = getattr(import_module('models'), FNM_model)
+if FNM_model == 'FNO2d':
+    FLAG_2D = True
+elif FNM_model == 'FNO1d2':
+    FLAG_2D = False
+else:
+    raise ValueError("Only models FNO2d and FNO1d2 are currently supported.")
 
 # File I/O
 data_prefix = '/groups/astuart/nnelsen/data/FNM/low_res/'
@@ -45,13 +52,12 @@ N_test = 500        # number of validation samples to monitor during training
 sub_in = 2**5       # input subsample factor (power of two) from s_max_in = 4097
 sub_out = 2**0      # output subsample factor (power of two) from s_max_out = 33
 
-# TODO: fix val/test split
-
 # FNO
 modes1 = FNM_modes
 modes2 = FNM_modes
 width = FNM_width
 d_in = 1
+n_layers = FNM_layers
 
 # Training
 batch_size = 20
@@ -79,7 +85,7 @@ os.makedirs(savepath, exist_ok=True)
 
 # Load training data
 y_train_all = torch.load(data_folder + 'velocity.pt')['velocity'][:,::sub_in].clone()
-N_max, s = y_train_all.shape
+N_max = y_train_all.shape[0]
 assert N_train <= N_max
 x_train_all = y_train_all.unsqueeze(1)
 y_train_all = torch.load(data_folder + 'state.pt')['state'][:,::sub_out,::sub_out].clone()
@@ -95,24 +101,27 @@ loss_abs = LppLoss(size_average=False, reduction=True) # absolute squared L^2 er
 d_test_str = d_str
 obj_suffix_eval = '_TESTd' + d_test_str + obj_suffix
 
-# Load QoI test data
-qoi_eval = torch.load(data_folder_test + 'qoi.pt')['qoi']
-N_qoi = qoi_eval.shape[-1]
-
 # Load test data
 x_test_all = torch.load(data_folder_test + 'velocity.pt')['velocity'].clone().unsqueeze(1)
 x_eval = x_test_all[...,::sub_in]
-N_test_max, _, s_test = x_eval.shape
+N_test_max = x_eval.shape[0]
 assert N_test <= N_test_max
 y_test_all = torch.load(data_folder_test + 'state.pt')['state'].clone()
 
 # Process evaluation
-x_eval = x_eval.unsqueeze(-1).repeat(1, 1, 1, s_test)
+N_eval = N_test_max - N_test
+x_eval = process_velocity(x_eval, FLAG_2D)
 y_eval = y_test_all[...,::sub_out,::sub_out]
-s_outputtest = y_eval.shape[-2:]
-eval_loader = DataLoader(TensorDatasetID(x_eval, y_eval), batch_size=batch_size, shuffle=False)
 test_loader = DataLoader(TensorDataset(x_eval[-N_test:,...], y_eval[-N_test:,...]),
                          batch_size=batch_size, shuffle=False)
+x_eval = x_eval[:-N_test,...]
+y_eval = y_eval[:-N_test,...]
+eval_loader = DataLoader(TensorDatasetID(x_eval, y_eval),
+                         batch_size=batch_size, shuffle=False)
+
+# Load QoI evaluation data
+qoi_eval = torch.load(data_folder_test + 'qoi.pt')['qoi'][:-N_test,...]
+N_qoi = qoi_eval.shape[-1]
 
 # Initialize output files
 idx_shuffle_all = []
@@ -139,7 +148,7 @@ for loop in range(N_MC):
     y_train = y_train_all[dataset_shuffle_idx, ...]
     
     # Extract
-    x_train = x_train[:N_train,...].unsqueeze(-1).repeat(1, 1, 1, s)
+    x_train = process_velocity(x_train[:N_train,...], FLAG_2D)
     y_train = y_train[:N_train,...]
     train_loader = DataLoader(TensorDataset(x_train, y_train), batch_size=batch_size, shuffle=True)
     
@@ -151,6 +160,7 @@ for loop in range(N_MC):
     s_outputspace = tuple(y_train.shape[-2:])   # same output shape as the output dataset
     
     model = my_model(modes1, modes2, width, s_outputspace, d_in=d_in).to(device)
+    print(model)
     print("FNO parameter count:", count_params(model))
     
     optimizer = Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
@@ -256,7 +266,7 @@ for loop in range(N_MC):
     num = 0.0
     den = 0.0
     state_out = torch.zeros(y_eval.shape)
-    qoi_out = torch.zeros((N_test_max, N_qoi))
+    qoi_out = torch.zeros((N_eval, N_qoi))
     errors_test = torch.zeros(y_eval.shape[0])
     with torch.no_grad():
         for x, y, idx_test in eval_loader:
@@ -275,7 +285,7 @@ for loop in range(N_MC):
             state_out[idx_test, ...] = out.cpu()
     
     # State error
-    er_test_loss /= N_test_max
+    er_test_loss /= N_eval
     er_test_bochner = (num/den)**(0.5)
     
     # QoI errors
@@ -288,7 +298,7 @@ for loop in range(N_MC):
                                   / torch.abs(qoi_eval), dim=0)
 
     t2 = default_timer()
-    print("Time to evaluate", N_test_max, "samples (sec):", t2-t1)
+    print("Time to evaluate", N_eval, "samples (sec):", t2-t1)
     print("Average relative L2 test:", er_test_loss)
     print("Relative Bochner L2 test:", er_test_bochner)
     print("QoI average relative L2 test (total):", er_test_qoi_loss)
@@ -330,7 +340,7 @@ if FLAG_save_plots:
     # Plot train and test errors
     plt.close()
     plt.semilogy(errors[...,:2])
-    plt.grid()
+    plt.grid(True, which="both")
     plt.xlim(0, epochs)
     plt.xlabel(r'Epoch')
     plt.ylabel(r'Error')
@@ -339,7 +349,7 @@ if FLAG_save_plots:
     
     plt.close()
     plt.semilogy(errors[...,2:4])
-    plt.grid()
+    plt.grid(True, which="both")
     plt.xlim(0, epochs)
     plt.xlabel(r'Epoch')
     plt.ylabel(r'Error')
@@ -349,7 +359,7 @@ if FLAG_save_plots:
     for i in range(N_qoi):    
         plt.close()
         plt.semilogy(errors[...,4+2*i:5+2*i+1])
-        plt.grid()
+        plt.grid(True, which="both")
         plt.xlim(0, epochs)
         plt.xlabel(r'Epoch')
         plt.ylabel(r'Error')

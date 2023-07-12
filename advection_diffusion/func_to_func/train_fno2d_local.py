@@ -9,7 +9,7 @@ from util.utilities_module import LpLoss, LppLoss, count_params, validate, datas
 from torch.utils.data import TensorDataset, DataLoader
 TensorDatasetID = dataset_with_indices(TensorDataset)
 
-from advection_diffusion.helpers import get_qoi, trapz2
+from advection_diffusion.helpers import get_qoi, trapz2, process_velocity
 
 ################################################################
 #
@@ -19,13 +19,13 @@ from advection_diffusion.helpers import get_qoi, trapz2
 print(sys.argv)
 
 save_prefix = 'FNM_TEST_LAYERS2/'    # e.g., 'robustness/', 'scalability/', 'efficiency/'
-data_suffix = 'nu_inf_ell_p05_torch/' # 'nu_1p5_ell_p25_torch/', 'nu_inf_ell_p05_torch/'
-N_train = 500
+data_suffix = 'nu_1p5_ell_p25_torch/' # 'nu_1p5_ell_p25_torch/', 'nu_inf_ell_p05_torch/'
+N_train = 100
 d_str = '1000'
 
 # File I/O
 data_prefix = '/media/nnelsen/SharedHDD2TB/datasets/FNM/low_res/'      # local
-FLAG_save_model = True
+FLAG_save_model = not True
 FLAG_save_plots = True
 
 # Sample size  
@@ -67,7 +67,7 @@ os.makedirs(savepath, exist_ok=True)
 
 # Load train
 y_train = torch.load(data_folder + 'velocity.pt')['velocity'][:,::sub_in].clone()
-N_max, s = y_train.shape
+N_max = y_train.shape[0]
 assert N_train <= N_max
 x_train = y_train.unsqueeze(1)
 y_train = torch.load(data_folder + 'state.pt')['state'][:,::sub_out,::sub_out].clone()
@@ -79,7 +79,7 @@ x_train = x_train[dataset_shuffle_idx, ...]
 y_train = y_train[dataset_shuffle_idx, ...]
 
 # Extract
-x_train = x_train[:N_train,...].unsqueeze(-1).repeat(1, 1, 1, s) # velocity is constant in y=x_2 direction
+x_train = process_velocity(x_train[:N_train,...], True) # velocity is constant in y=x_2 direction
 y_train = y_train[:N_train,...]
 
 # Load QoI test data
@@ -89,11 +89,11 @@ N_qoi = qoi_test_all.shape[-1]
 # Load validation test data to monitor during training
 x_test_all = torch.load(data_folder_test + 'velocity.pt')['velocity'].clone().unsqueeze(1)
 x_test = x_test_all[...,::sub_in]
-N_test_max, _, s_test = x_test.shape
+N_test_max = x_test.shape[0]
 assert N_test < N_test_max
 y_test_all = torch.load(data_folder_test + 'state.pt')['state'].clone()
 
-x_test = x_test[-N_test:,...].unsqueeze(-1).repeat(1, 1, 1, s_test)
+x_test = process_velocity(x_test[-N_test:,...], True)
 y_test = y_test_all[-N_test:,::sub_out,::sub_out]
 
 train_loader = DataLoader(TensorDataset(x_train, y_train), batch_size=batch_size, shuffle=True)
@@ -107,6 +107,7 @@ test_loader = DataLoader(TensorDataset(x_test, y_test), batch_size=batch_size, s
 s_outputspace = tuple(y_train.shape[-2:])   # same output shape as the output dataset
 
 model = my_model(modes1, modes2, width, s_outputspace, d_in=d_in, n_layers=n_layers).to(device)
+print(model)
 print("FNO parameter count:", count_params(model))
 
 optimizer = Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
@@ -202,7 +203,7 @@ obj_suffix_eval = '_TESTd' + d_test_str + obj_suffix
 # Use all test data
 qoi_test = qoi_test_all[:-N_test,...]
 N_eval = N_test_max - N_test
-x_test = x_test_all[:-N_test,...,::sub_in].unsqueeze(-1).repeat(1, 1, 1, s_test)
+x_test = process_velocity(x_test_all[:-N_test,...,::sub_in], True)
 y_test = y_test_all[:-N_test,...,::sub_out,::sub_out]
 test_loader = DataLoader(TensorDatasetID(x_test, y_test), batch_size=batch_size, shuffle=False)
 
@@ -284,7 +285,7 @@ if FLAG_save_plots:
     # Plot train and test errors
     plt.close()
     plt.semilogy(errors[...,:2])
-    plt.grid()
+    plt.grid(True, which="both")
     plt.xlim(0, epochs)
     plt.xlabel(r'Epoch')
     plt.ylabel(r'Error')
@@ -293,7 +294,7 @@ if FLAG_save_plots:
         
     plt.close()
     plt.semilogy(errors[...,2:4])
-    plt.grid()
+    plt.grid(True, which="both")
     plt.xlim(0, epochs)
     plt.xlabel(r'Epoch')
     plt.ylabel(r'Error')
@@ -303,7 +304,7 @@ if FLAG_save_plots:
     for i in range(N_qoi):    
         plt.close()
         plt.semilogy(errors[...,4+2*i:5+2*i+1])
-        plt.grid()
+        plt.grid(True, which="both")
         plt.xlim(0, epochs)
         plt.xlabel(r'Epoch')
         plt.ylabel(r'Error')

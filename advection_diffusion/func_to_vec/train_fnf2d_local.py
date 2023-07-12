@@ -9,6 +9,8 @@ from util.utilities_module import LpLoss, count_params, validate, dataset_with_i
 from torch.utils.data import TensorDataset, DataLoader
 TensorDatasetID = dataset_with_indices(TensorDataset)
 
+from advection_diffusion.helpers import process_velocity
+
 ################################################################
 #
 # %% user configuration
@@ -17,13 +19,14 @@ TensorDatasetID = dataset_with_indices(TensorDataset)
 print(sys.argv)
 
 save_prefix = 'FNM_TEST_LAYERS2/'    # e.g., 'robustness/', 'scalability/', 'efficiency/'
-data_suffix = 'nu_inf_ell_p05_torch/' # 'nu_1p5_ell_p25_torch/', 'nu_inf_ell_p05_torch/'
+data_suffix = 'nu_1p5_ell_p25_torch/' # 'nu_1p5_ell_p25_torch/', 'nu_inf_ell_p05_torch/'
 N_train = 500
 d_str = '1000'
+FLAG_2D = True
 
 # File I/O
 data_prefix = '/media/nnelsen/SharedHDD2TB/datasets/FNM/low_res/'      # local
-FLAG_save_model = True
+FLAG_save_model = not True
 FLAG_save_plots = True
 
 # Sample size  
@@ -35,7 +38,8 @@ sub_in = 2**6       # input subsample factor (power of two) from s_max_in = 4097
 # QoI indices (0 through 5) to learn
 idx_qoi = [0, 1, 2, 3, 4, 5]
 # idx_qoi = [1,2,3,4,5]
-# idx_qoi = [5]
+# idx_qoi = [3]
+# idx_qoi = [3,4]
 
 # FNF
 modes1 = 12
@@ -70,7 +74,7 @@ os.makedirs(savepath, exist_ok=True)
 
 # Load train
 y_train = torch.load(data_folder + 'velocity.pt')['velocity'][:,::sub_in].clone()
-N_max, s = y_train.shape
+N_max = y_train.shape[0]
 assert N_train <= N_max
 x_train = y_train.unsqueeze(1)
 y_train = torch.load(data_folder + 'qoi.pt')['qoi'][..., idx_qoi].clone()
@@ -82,17 +86,17 @@ x_train = x_train[dataset_shuffle_idx, ...]
 y_train = y_train[dataset_shuffle_idx, ...]
 
 # Extract
-x_train = x_train[:N_train,...].unsqueeze(-1).repeat(1, 1, 1, s) # velocity is constant in y=x_2 direction
+x_train = process_velocity(x_train[:N_train,...], FLAG_2D) # velocity is constant in y=x_2 direction
 y_train = y_train[:N_train,...]
 
 # Load validation test data to monitor during training
 x_test_all = torch.load(data_folder_test + 'velocity.pt')['velocity'].clone().unsqueeze(1)
 x_test = x_test_all[...,::sub_in]
-N_test_max, _, s_test = x_test.shape
+N_test_max = x_test.shape[0]
 assert N_test <= N_test_max
 y_test_all = torch.load(data_folder_test + 'qoi.pt')['qoi'][..., idx_qoi].clone()
 
-x_test = x_test[-N_test:,...].unsqueeze(-1).repeat(1, 1, 1, s_test)
+x_test = process_velocity(x_test[-N_test:,...], FLAG_2D)
 y_test = y_test_all[-N_test:,...]
 
 train_loader = DataLoader(TensorDataset(x_train, y_train), batch_size=batch_size, shuffle=True)
@@ -106,6 +110,7 @@ test_loader = DataLoader(TensorDataset(x_test, y_test), batch_size=batch_size, s
 N_qoi = len(idx_qoi)
 
 model = my_model(modes1, modes2, width, d_in=d_in, d_out=N_qoi, n_layers=n_layers).to(device)
+print(model)
 print("FNF parameter count:", count_params(model))
 
 optimizer = Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
@@ -197,7 +202,7 @@ obj_suffix_eval = '_TESTd' + d_test_str + obj_suffix
 
 # Use all test data
 N_eval = N_test_max - N_test
-x_test = x_test_all[:-N_test,...,::sub_in].unsqueeze(-1).repeat(1, 1, 1, s_test)
+x_test = process_velocity(x_test_all[:-N_test,...,::sub_in], FLAG_2D)
 y_test = y_test_all[:-N_test,...]
 test_loader = DataLoader(TensorDatasetID(x_test, y_test), batch_size=batch_size, shuffle=False)
 
@@ -264,7 +269,7 @@ if FLAG_save_plots:
     # Plot train and test errors
     plt.close()
     plt.semilogy(errors[...,:2])
-    plt.grid()
+    plt.grid(True, which="both")
     plt.xlim(0, epochs)
     plt.xlabel(r'Epoch')
     plt.ylabel(r'Error')
@@ -272,15 +277,15 @@ if FLAG_save_plots:
     plt.savefig(plot_folder + "epochs" + obj_suffix[:-3] + "pdf", format='pdf')
     
     if not FLAG_ONE:
-        for i in idx_qoi:    
+        for i in range(N_qoi):    
             plt.close()
             plt.semilogy(errors[...,2+2*i:3+2*i+1])
-            plt.grid()
+            plt.grid(True, which="both")
             plt.xlim(0, epochs)
             plt.xlabel(r'Epoch')
             plt.ylabel(r'Error')
-            plt.legend(["Train QoI-" + str(i), "Val QoI-" + str(i)])
-            plt.savefig(plot_folder + "epochs_qoi" + str(i) + obj_suffix[:-3] + "pdf", format='pdf')
+            plt.legend(["Train QoI-" + str(idx_qoi[i]), "Val QoI-" + str(idx_qoi[i])])
+            plt.savefig(plot_folder + "epochs_qoi" + str(idx_qoi[i]) + obj_suffix[:-3] + "pdf", format='pdf')
     
     # Begin five errors plots
     idx_worst = torch.argmax(errors_test).item()
