@@ -40,14 +40,14 @@ modes1 = 12
 modes2 = 12
 width = 32
 d_in = 1
-n_layers = 4
+n_layers = 2
 
 # Training
 batch_size = 20
-epochs = 502*0 + 125
+epochs = 502
 learning_rate = 1e-3
 weight_decay = 1e-4
-scheduler_step = 100*0 + 25
+scheduler_step = 100
 scheduler_gamma = 0.5
 
 ################################################################
@@ -84,7 +84,8 @@ x_train = x_train[:N_train,...].unsqueeze(-1).repeat(1, 1, 1, s) # velocity is c
 y_train = y_train[:N_train,...]
 
 # Load QoI test data
-qoi_test = torch.load(data_folder_test + 'qoi.pt')['qoi']
+qoi_test_all = torch.load(data_folder_test + 'qoi.pt')['qoi']
+N_qoi = qoi_test_all.shape[-1]
 
 # Load validation test data to monitor during training
 x_test_all = torch.load(data_folder_test + 'velocity.pt')['velocity'].clone().unsqueeze(1)
@@ -116,7 +117,7 @@ scheduler = torch.optim.lr_scheduler.StepLR(optimizer,
 
 loss_f = LpLoss(size_average=False)
 
-errors = torch.zeros((epochs, 2 + 2 + 2*qoi_test.shape[-1]))
+errors = torch.zeros((epochs, 2 + 2 + 2*N_qoi))
 
 t0 = default_timer()
 for ep in range(epochs):
@@ -124,7 +125,7 @@ for ep in range(epochs):
 
     train_loss = 0.0
     train_qoi = 0.0
-    train_qoi_vec = torch.zeros((qoi_test.shape[-1]), device=device)
+    train_qoi_vec = torch.zeros((N_qoi), device=device)
     model.train()
     for x, y in train_loader:
         x, y = x.to(device), y.to(device)
@@ -149,7 +150,7 @@ for ep in range(epochs):
     model.eval()
     test_loss = 0.0
     test_qoi = 0.0
-    test_qoi_vec = torch.zeros((qoi_test.shape[-1]), device=device)
+    test_qoi_vec = torch.zeros((N_qoi), device=device)
     with torch.no_grad():
         for x, y in test_loader:
             x, y = x.to(device), y.to(device)
@@ -176,7 +177,7 @@ for ep in range(epochs):
     errors[ep,1] = test_loss
     errors[ep,2] = train_qoi
     errors[ep,3] = test_qoi
-    for i in range(qoi_test.shape[-1]):    
+    for i in range(N_qoi):    
         errors[ep,4+2*i:5+2*i+1] = torch.tensor([train_qoi_vec[i], test_qoi_vec[i]]).cpu()
 
     if FLAG_save_model:
@@ -200,6 +201,7 @@ d_test_str = d_str
 obj_suffix_eval = '_TESTd' + d_test_str + obj_suffix
 
 # Use all test data
+qoi_test = qoi_test_all[:-N_test,...]
 N_eval = N_test_max - N_test
 x_test = x_test_all[:-N_test,...,::sub_in].unsqueeze(-1).repeat(1, 1, 1, s_test)
 y_test = y_test_all[:-N_test,...,::sub_out,::sub_out]
@@ -215,7 +217,7 @@ er_test_loss = 0.0
 num = 0.0
 den = 0.0
 test_out = torch.zeros(y_test.shape)
-qoi_out = torch.zeros(N_test_max, qoi_test.shape[-1])
+qoi_out = torch.zeros(N_eval, N_qoi)
 errors_test = torch.zeros(y_test.shape[0])
 with torch.no_grad():
     for x, y, idx_test in test_loader:
@@ -299,7 +301,7 @@ if FLAG_save_plots:
     plt.legend(["Train QoI All", "Val QoI All"])
     plt.savefig(plot_folder + "epochs_qoiALL" + obj_suffix[:-3] + "pdf", format='pdf')
     
-    for i in range(qoi_test.shape[-1]):    
+    for i in range(N_qoi):    
         plt.close()
         plt.semilogy(errors[...,4+2*i:5+2*i+1])
         plt.grid()

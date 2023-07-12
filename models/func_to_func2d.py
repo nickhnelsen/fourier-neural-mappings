@@ -18,7 +18,8 @@ class FNO2d(nn.Module):
                  padding=8,
                  d_in=1,
                  d_out=1,
-                 act='gelu'
+                 act='gelu',
+                 n_layers=4
                  ):
         """
         modes1, modes2  (int): Fourier mode truncation levels
@@ -29,6 +30,7 @@ class FNO2d(nn.Module):
         d_in            (int): number of input channels (NOT including grid input features)
         d_out           (int): number of output channels (co-domain dimension of output space functions)
         act             (str): Activation function = tanh, relu, gelu, elu, or leakyrelu
+        n_layers        (int): Number of Fourier Layers, by default 4
         """
         super(FNO2d, self).__init__()
 
@@ -41,20 +43,23 @@ class FNO2d(nn.Module):
         self.d_in = d_in
         self.d_out = d_out
         self.act = _get_act(act)
+        self.n_layers = n_layers
+        if self.n_layers is None:
+            self.n_layers = 4
         
         self.set_outputspace_resolution(s_outputspace)
 
         self.fc0 = nn.Linear(self.d_in + self.d_physical, self.width)
+        
+        self.speconvs = nn.ModuleList([
+            SpectralConv2d(self.width, self.width, self.modes1, self.modes2)
+                for _ in range(self.n_layers)]
+            )
 
-        self.conv0 = SpectralConv2d(self.width, self.width, self.modes1, self.modes2)
-        self.conv1 = SpectralConv2d(self.width, self.width, self.modes1, self.modes2)
-        self.conv2 = SpectralConv2d(self.width, self.width, self.modes1, self.modes2)
-        self.conv3 = SpectralConv2d(self.width, self.width, self.modes1, self.modes2)
-
-        self.w0 = nn.Conv2d(self.width, self.width, 1)
-        self.w1 = nn.Conv2d(self.width, self.width, 1)
-        self.w2 = nn.Conv2d(self.width, self.width, 1)
-        self.w3 = nn.Conv2d(self.width, self.width, 1)
+        self.ws = nn.ModuleList([
+            nn.Conv2d(self.width, self.width, 1)
+                for _ in range(self.n_layers)]
+            )
 
         self.mlp0 = MLP(self.width, self.width_final, self.d_out, act)
 
@@ -77,17 +82,13 @@ class FNO2d(nn.Module):
         x = F.pad(x, [0, x_res[-1]//self.padding, 0, x_res[-2]//self.padding])
 
         # Fourier integral operator layers on the torus
-        x = self.w0(x) + self.conv0(x)
-        x = self.act(x)
-
-        x = self.w1(x) + self.conv1(x)
-        x = self.act(x)
-
-        x = self.w2(x) + self.conv2(x)
-        x = self.act(x)
-
-        # Change resolution in function space consistent way
-        x = self.w3(projector2d(x, s=self.s_outputspace)) + self.conv3(x, s=self.s_outputspace)
+        for idx_layer, (speconv, w) in enumerate(zip(self.speconvs, self.ws)):
+            if idx_layer != self.n_layers - 1:
+                x = w(x) + speconv(x)
+                x = self.act(x)
+            else:
+                # Change resolution in function space consistent way
+                x = w(projector2d(x, s=self.s_outputspace)) + speconv(x, s=self.s_outputspace)
 
         # Map from the torus into the output domain
         if self.s_outputspace is not None:
