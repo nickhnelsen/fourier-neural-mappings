@@ -23,9 +23,9 @@ data_suffix = sys.argv[2]   # e.g., 'nu_inf_ell_p05_torch/' or 'nu_1p5_ell_p25_t
 N_train = int(sys.argv[3])  # training sample size
 d_str = sys.argv[4]         # KLE dimension of training inputs (d = 1, 2, 5, 10, 15, 20, or 1000)
 FNM_model = sys.argv[5]     # model name: 'FNO2d', etc
-FNM_modes = int(sys.argv[6])
-FNM_width = int(sys.argv[7])
-FNM_layers = int(sys.argv[8])
+FNM_layers = int(sys.argv[6])
+FNM_modes = int(sys.argv[7])
+FNM_width = int(sys.argv[8])
 
 # Import FNO model
 my_model = getattr(import_module('models'), FNM_model)
