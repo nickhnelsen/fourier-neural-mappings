@@ -17,7 +17,8 @@ class FNF1d(nn.Module):
                  d_in=1,
                  d_out=1,
                  width_lfunc=None,
-                 act='gelu'
+                 act='gelu',
+                 n_layers=4
                  ):
         """
         modes1          (int): Fourier mode truncation levels
@@ -28,6 +29,7 @@ class FNF1d(nn.Module):
         d_out           (int): finite number of desired outputs (number of functionals)
         width_lfunc     (int): number of intermediate linear functionals to extract in FNF layer
         act             (str): Activation function = tanh, relu, gelu, elu, or leakyrelu
+        n_layers        (int): Number of Fourier Layers, by default 4
         """
         super(FNF1d, self).__init__()
 
@@ -43,16 +45,21 @@ class FNF1d(nn.Module):
         else:
             self.width_lfunc = width_lfunc
         self.act = _get_act(act)
+        self.n_layers = n_layers
+        if self.n_layers is None:
+            self.n_layers = 4
         
         self.fc0 = nn.Linear(self.d_in + self.d_physical, self.width)
+        
+        self.speconvs = nn.ModuleList([
+            SpectralConv1d(self.width, self.width, self.modes1)
+                for _ in range(self.n_layers - 1)]
+            )
 
-        self.conv0 = SpectralConv1d(self.width, self.width, self.modes1)
-        self.conv1 = SpectralConv1d(self.width, self.width, self.modes1)
-        self.conv2 = SpectralConv1d(self.width, self.width, self.modes1)
-
-        self.w0 = nn.Conv1d(self.width, self.width, 1)
-        self.w1 = nn.Conv1d(self.width, self.width, 1)
-        self.w2 = nn.Conv1d(self.width, self.width, 1)
+        self.ws = nn.ModuleList([
+            nn.Conv1d(self.width, self.width, 1)
+                for _ in range(self.n_layers - 1)]
+            )
         
         self.lfunc0 = LinearFunctionals1d(self.width, self.width_lfunc, self.modes1)
         self.mlpfunc0 = MLP(self.width, self.width_final, self.width_lfunc, act)
@@ -75,16 +82,11 @@ class FNF1d(nn.Module):
         
         # Map from input domain into the torus
         x = F.pad(x, [0, x.shape[-1]//self.padding])
-
+        
         # Fourier integral operator layers on the torus
-        x = self.w0(x) + self.conv0(x)
-        x = self.act(x)
-
-        x = self.w1(x) + self.conv1(x)
-        x = self.act(x)
-
-        x = self.w2(x) + self.conv2(x)
-        x = self.act(x)
+        for speconv, w in zip(self.speconvs, self.ws):
+            x = w(x) + speconv(x)
+            x = self.act(x)
 
         # Extract Fourier neural functionals on the torus
         x_temp = self.lfunc0(x)
