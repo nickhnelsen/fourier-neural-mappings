@@ -18,8 +18,8 @@ from advection_diffusion.helpers import get_qoi, trapz2
 ################################################################
 print(sys.argv)
 
-save_prefix = 'FNM_TEST_LAYERS/'    # e.g., 'robustness/', 'scalability/', 'efficiency/'
-data_suffix = 'nu_1p5_ell_p25_torch/' # 'nu_1p5_ell_p25_torch/', 'nu_inf_ell_p05_torch/'
+save_prefix = 'FNM_TEST_LAYERS2/'    # e.g., 'robustness/', 'scalability/', 'efficiency/'
+data_suffix = 'nu_inf_ell_p05_torch/' # 'nu_1p5_ell_p25_torch/', 'nu_inf_ell_p05_torch/'
 N_train = 500
 d_str = '1000'
 
@@ -69,8 +69,7 @@ os.makedirs(savepath, exist_ok=True)
 y_train = torch.load(data_folder + 'velocity.pt')['velocity'][:,::sub_in].clone()
 N_max, s = y_train.shape
 assert N_train <= N_max
-x_train = torch.zeros(N_max, 1, s)
-x_train[:, 0, :] = y_train
+x_train = y_train.unsqueeze(1)
 y_train = torch.load(data_folder + 'state.pt')['state'][:,::sub_out,::sub_out].clone()
 
 # Shuffle training set selection

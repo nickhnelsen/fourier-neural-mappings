@@ -45,6 +45,8 @@ N_test = 500        # number of validation samples to monitor during training
 sub_in = 2**5       # input subsample factor (power of two) from s_max_in = 4097
 sub_out = 2**0      # output subsample factor (power of two) from s_max_out = 33
 
+# TODO: fix val/test split
+
 # FNO
 modes1 = FNM_modes
 modes2 = FNM_modes
