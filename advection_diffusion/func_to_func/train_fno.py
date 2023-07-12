@@ -76,7 +76,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print("Device is", device)
 
 # File IO
-obj_suffix = '_' + FNM_model + '_m' + str(FNM_modes) + '_w' + str(FNM_width) 
+obj_suffix = '_' + FNM_model + '_L' + str(FNM_layers) + '_m' + str(FNM_modes) + '_w' + str(FNM_width) 
 obj_suffix = '_n' + str(N_train) + '_d' + d_str + obj_suffix + '.npy'
 data_folder = data_prefix + data_suffix + 'training/' + d_str + 'd/'
 data_folder_test = data_prefix + data_suffix + 'testing/' + d_str + 'd/'
@@ -159,7 +159,7 @@ for loop in range(N_MC):
     ################################################################
     s_outputspace = tuple(y_train.shape[-2:])   # same output shape as the output dataset
     
-    model = my_model(modes1, modes2, width, s_outputspace, d_in=d_in).to(device)
+    model = my_model(modes1, modes2, width, s_outputspace, d_in=d_in, n_layers=n_layers).to(device)
     print(model)
     print("FNO parameter count:", count_params(model))
     
