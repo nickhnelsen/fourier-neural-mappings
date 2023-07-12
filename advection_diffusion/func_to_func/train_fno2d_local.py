@@ -18,7 +18,7 @@ from advection_diffusion.helpers import get_qoi, trapz2
 ################################################################
 print(sys.argv)
 
-save_prefix = 'FNM_TEST_FNO/'    # e.g., 'robustness/', 'scalability/', 'efficiency/'
+save_prefix = 'FNM_TEST_LAYERS/'    # e.g., 'robustness/', 'scalability/', 'efficiency/'
 data_suffix = 'nu_1p5_ell_p25_torch/' # 'nu_1p5_ell_p25_torch/', 'nu_inf_ell_p05_torch/'
 N_train = 500
 d_str = '1000'
@@ -40,13 +40,14 @@ modes1 = 12
 modes2 = 12
 width = 32
 d_in = 1
+n_layers = 4
 
 # Training
 batch_size = 20
-epochs = 502
+epochs = 502*0 + 125
 learning_rate = 1e-3
 weight_decay = 1e-4
-scheduler_step = 100
+scheduler_step = 100*0 + 25
 scheduler_gamma = 0.5
 
 ################################################################
@@ -89,7 +90,7 @@ qoi_test = torch.load(data_folder_test + 'qoi.pt')['qoi']
 x_test_all = torch.load(data_folder_test + 'velocity.pt')['velocity'].clone().unsqueeze(1)
 x_test = x_test_all[...,::sub_in]
 N_test_max, _, s_test = x_test.shape
-assert N_test <= N_test_max
+assert N_test < N_test_max
 y_test_all = torch.load(data_folder_test + 'state.pt')['state'].clone()
 
 x_test = x_test[-N_test:,...].unsqueeze(-1).repeat(1, 1, 1, s_test)
@@ -105,7 +106,7 @@ test_loader = DataLoader(TensorDataset(x_test, y_test), batch_size=batch_size, s
 ################################################################
 s_outputspace = tuple(y_train.shape[-2:])   # same output shape as the output dataset
 
-model = my_model(modes1, modes2, width, s_outputspace, d_in=d_in).to(device)
+model = my_model(modes1, modes2, width, s_outputspace, d_in=d_in, n_layers=n_layers).to(device)
 print("FNO parameter count:", count_params(model))
 
 optimizer = Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
@@ -199,8 +200,9 @@ d_test_str = d_str
 obj_suffix_eval = '_TESTd' + d_test_str + obj_suffix
 
 # Use all test data
-x_test = x_test_all[...,::sub_in].unsqueeze(-1).repeat(1, 1, 1, s_test)
-y_test = y_test_all[...,::sub_out,::sub_out]
+N_eval = N_test_max - N_test
+x_test = x_test_all[:-N_test,...,::sub_in].unsqueeze(-1).repeat(1, 1, 1, s_test)
+y_test = y_test_all[:-N_test,...,::sub_out,::sub_out]
 test_loader = DataLoader(TensorDatasetID(x_test, y_test), batch_size=batch_size, shuffle=False)
 
 # Evaluate
@@ -232,7 +234,7 @@ with torch.no_grad():
         test_out[idx_test, ...] = out.cpu()
 
 # State error
-er_test_loss /= N_test_max
+er_test_loss /= N_eval
 er_test_bochner = (num/den)**(0.5)
 
 # QoI errors
@@ -245,7 +247,7 @@ er_test_qoi_loss_vec = torch.mean(torch.abs(qoi_test - qoi_out)
                               / torch.abs(qoi_test), dim=0)
 
 t2 = default_timer()
-print("Time to evaluate", N_test_max, "samples (sec):", t2-t1)
+print("Time to evaluate", N_eval, "samples (sec):", t2-t1)
 print("Average relative L2 test:", er_test_loss)
 print("Relative Bochner L2 test:", er_test_bochner)
 print("QoI average relative L2 test (total):", er_test_qoi_loss)
