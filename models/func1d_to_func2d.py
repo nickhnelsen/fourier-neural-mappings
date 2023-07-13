@@ -11,7 +11,7 @@ class FNO1d2(nn.Module):
     """
     def __init__(self,
                  modes1d=16,
-                 width1d=64,
+                 width1d=96,
                  modes1=12,
                  modes2=12,
                  width=32,
@@ -76,7 +76,7 @@ class FNO1d2(nn.Module):
         Input shape (of x):     (batch, channels_in, nx_in)
         Output shape:           (batch, channels_out, nx_out, ny_out)
         
-        The input resolution is determined by x.shape[-2:]
+        The input resolution is determined by x.shape[-1]
         The output resolution is determined by self.s_outputspace
         """
         # Lifting layer

@@ -18,7 +18,7 @@ from advection_diffusion.helpers import process_velocity
 ################################################################
 print(sys.argv)
 
-save_prefix = 'FNM_TEST_LAYERS2/'    # e.g., 'robustness/', 'scalability/', 'efficiency/'
+save_prefix = 'FNM_TEST_FNF2d/'    # e.g., 'robustness/', 'scalability/', 'efficiency/'
 data_suffix = 'nu_1p5_ell_p25_torch/' # 'nu_1p5_ell_p25_torch/', 'nu_inf_ell_p05_torch/'
 N_train = 500
 d_str = '1000'

@@ -3,7 +3,7 @@ import numpy as np
 import os, sys; sys.path.append(os.path.join('../..'))
 from timeit import default_timer
 
-from models import FNO2d as my_model
+from models import FNO1d2 as my_model
 from util import Adam
 from util.utilities_module import LpLoss, LppLoss, count_params, validate, dataset_with_indices
 from torch.utils.data import TensorDataset, DataLoader
@@ -18,11 +18,11 @@ from advection_diffusion.helpers import get_qoi, trapz2, process_velocity
 ################################################################
 print(sys.argv)
 
-save_prefix = 'FNM_FNO2d/'    # e.g., 'robustness/', 'scalability/', 'efficiency/'
+save_prefix = 'FNM_TEST_FNO1d2/'    # e.g., 'robustness/', 'scalability/', 'efficiency/'
 data_suffix = 'nu_1p5_ell_p25_torch/' # 'nu_1p5_ell_p25_torch/', 'nu_inf_ell_p05_torch/'
 N_train = 500
 d_str = '1000'
-FLAG_2D = True
+FLAG_2D = False
 
 # File I/O
 data_prefix = '/media/nnelsen/SharedHDD2TB/datasets/FNM/low_res/'      # local
@@ -37,6 +37,8 @@ sub_in = 2**6       # input subsample factor (power of two) from s_max_in = 4097
 sub_out = 2**0      # output subsample factor (power of two) from s_max_out = 33
 
 # FNO
+modes1d = 24
+width1d = 128
 modes1 = 12
 modes2 = 12
 width = 32
@@ -107,7 +109,14 @@ test_loader = DataLoader(TensorDataset(x_test, y_test), batch_size=batch_size, s
 ################################################################
 s_outputspace = tuple(y_train.shape[-2:])   # same output shape as the output dataset
 
-model = my_model(modes1, modes2, width, s_outputspace, d_in=d_in, n_layers=n_layers).to(device)
+model = my_model(modes1d,
+                 width1d,
+                 modes1,
+                 modes2,
+                 width,
+                 s_outputspace,
+                 d_in=d_in,
+                 n_layers=n_layers).to(device)
 print(model)
 print("FNO parameter count:", count_params(model))
 

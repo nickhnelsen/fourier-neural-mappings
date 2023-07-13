@@ -11,7 +11,7 @@ class FNO2d1(nn.Module):
     """
     def __init__(self,
                  modes1d=16,
-                 width1d=64,
+                 width1d=96,
                  modes1=12,
                  modes2=12,
                  width=32,
