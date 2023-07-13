@@ -4,8 +4,8 @@
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=1
-#SBATCH --mem=16G
 #SBATCH --gres gpu:1
+#SBATCH --mem-per-cpu=16G
 #SBATCH --export=ALL
 #SBATCH --mail-user=nnelsen@caltech.edu
 #SBATCH --mail-type=FAIL
