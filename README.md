@@ -17,4 +17,4 @@ TBA
 - [Fourier Neural Operator for Parametric Partial Differential Equations](https://arxiv.org/abs/2010.08895)
 - [Fourier Neural Operator with Learned Deformations for PDEs on General Geometries](https://arxiv.org/abs/2207.05209)
 - RaISE paper arxiv TBD
-- TBA
+- [Learning Homogenization for Elliptic Operators](https://arxiv.org/abs/2306.12006)
