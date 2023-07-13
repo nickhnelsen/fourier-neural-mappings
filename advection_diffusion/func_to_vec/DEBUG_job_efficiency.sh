@@ -21,7 +21,7 @@ for datsuf in "${dsl[@]}"; do
             for N in "${Ns[@]}"; do
                 job_name="${svpref:0:1}_n${N}_d${d}_${model}_qoi${qoi}_L${L}_m${m}_w${w}_md${m1d}_wd${w1d}_${datsuf::-7}"
                 std="${dir_name}R-%x.%j"
-                scommand="sbatch --job-name=${job_name} --output=${std}.out --error=${std}.err train_fnf.sbatch ${svpref} ${datsuf} ${N} ${d} ${model} ${L} ${m} ${w} ${m1d} ${w1d} ${qoi}"
+                scommand="sbatch --job-name=${job_name} --output=${std}.out --error=${std}.err DEBUG_train_fnf.sbatch ${svpref} ${datsuf} ${N} ${d} ${model} ${L} ${m} ${w} ${m1d} ${w1d} ${qoi}"
                 
                 echo "submit command: $scommand"
                 
