@@ -45,7 +45,6 @@ N_test = 500        # number of validation samples to monitor during training
 # Resolution subsampling
 sub_in = 2**5       # input subsample factor (power of two) from s_max_in = 4097
 sub_in1d = 2**0
-sub_out = 2**0      # output subsample factor (power of two) from s_max_out = 33
 
 # Training
 batch_size = 20
