@@ -26,8 +26,8 @@ FNM_model = sys.argv[5]     # model name: 'FNO2d', etc
 FNM_layers = int(sys.argv[6])
 FNM_modes = int(sys.argv[7])
 FNM_width = int(sys.argv[8])
-FNM_modes1d = int(sys.argv[8])
-FNM_width1d = int(sys.argv[9])
+FNM_modes1d = int(sys.argv[9])
+FNM_width1d = int(sys.argv[10])
 
 # File I/O
 data_prefix = '/groups/astuart/nnelsen/data/FNM/low_res/'
