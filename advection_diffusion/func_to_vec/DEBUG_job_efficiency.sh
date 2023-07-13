@@ -25,7 +25,7 @@ for datsuf in "${dsl[@]}"; do
                 
                 echo "submit command: $scommand"
                 
-                #$scommand
+                $scommand
                 
                 (( COUNT++ ))
             done
