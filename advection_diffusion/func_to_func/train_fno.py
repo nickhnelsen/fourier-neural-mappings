@@ -26,15 +26,8 @@ FNM_model = sys.argv[5]     # model name: 'FNO2d', etc
 FNM_layers = int(sys.argv[6])
 FNM_modes = int(sys.argv[7])
 FNM_width = int(sys.argv[8])
-
-# Import FNO model
-my_model = getattr(import_module('models'), FNM_model)
-if FNM_model == 'FNO2d':
-    FLAG_2D = True
-elif FNM_model == 'FNO1d2':
-    FLAG_2D = False
-else:
-    raise ValueError("Only models FNO2d and FNO1d2 are currently supported.")
+FNM_modes1d = int(sys.argv[8])
+FNM_width1d = int(sys.argv[9])
 
 # File I/O
 data_prefix = '/groups/astuart/nnelsen/data/FNM/low_res/'
@@ -52,13 +45,6 @@ N_test = 500        # number of validation samples to monitor during training
 sub_in = 2**5       # input subsample factor (power of two) from s_max_in = 4097
 sub_out = 2**0      # output subsample factor (power of two) from s_max_out = 33
 
-# FNO
-modes1 = FNM_modes
-modes2 = FNM_modes
-width = FNM_width
-d_in = 1
-n_layers = FNM_layers
-
 # Training
 batch_size = 20
 epochs = 502
@@ -66,6 +52,24 @@ learning_rate = 1e-3
 weight_decay = 1e-4
 scheduler_step = 100
 scheduler_gamma = 0.5
+
+# Import FNO model
+d_in = 1
+modes1 = FNM_modes
+modes2 = FNM_modes
+width = FNM_width
+modes1d = FNM_modes1d
+width1d = FNM_width1d
+n_layers = FNM_layers
+my_model = getattr(import_module('models'), FNM_model)
+if FNM_model == 'FNO2d':
+    FLAG_2D = True
+    modes_width_list = [modes1, modes2, width]
+elif FNM_model == 'FNO1d2':
+    FLAG_2D = False
+    modes_width_list = [modes1d, width1d, modes1, modes2, width]
+else:
+    raise ValueError("Only models FNO2d and FNO1d2 are currently supported.")
 
 ################################################################
 #
@@ -159,7 +163,7 @@ for loop in range(N_MC):
     ################################################################
     s_outputspace = tuple(y_train.shape[-2:])   # same output shape as the output dataset
     
-    model = my_model(modes1, modes2, width, s_outputspace, d_in=d_in, n_layers=n_layers).to(device)
+    model = my_model(*modes_width_list, s_outputspace, d_in=d_in, n_layers=n_layers).to(device)
     print(model)
     print("FNO parameter count:", count_params(model))
     
