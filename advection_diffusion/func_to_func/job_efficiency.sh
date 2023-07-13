@@ -1,47 +1,35 @@
 #!/bin/bash
 
-#SBATCH --time=24:00:00
-#SBATCH --ntasks=9
-#SBATCH --nodes=3
-##SBATCH --ntasks-per-node=4
-#SBATCH --cpus-per-task=1
-#SBATCH --gpus-per-task=1
-#SBATCH --gpu-bind=single:1
-#SBATCH --mem-per-cpu=16G
-#SBATCH --job-name="ed2_FNO"
-#SBATCH --output=R-%x.%j.out
-#SBATCH --error=R-%x.%j.err
-#SBATCH --export=ALL
-#SBATCH --mail-user=nnelsen@caltech.edu
-#SBATCH --mail-type=BEGIN
-#SBATCH --mail-type=END
-#SBATCH --mail-type=FAIL
+svpref=efficiency/
+declare -a dsl=("nu_1p5_ell_p25_torch/" "nu_inf_ell_p25_torch/" "nu_inf_ell_p05_torch/")
+declare -a Ns=("10" "32" "100" "316" "1000" "3162" "10000")
+d=1000
+declare -a models=("FNO2d" "FNO1d2")
+declare -a Ls=("2" "4")
+m=12
+w=32
+m1d=24
+w1d=128
 
-d=2
-save_prefix=efficiency/
-declare -a dsl=("nu_inf_ell_p25_torch/" "nu_1p5_ell_p25_torch/" "nu_inf_ell_p05_torch/")
-declare -a Ns=("2500" "5000" "10000")
-declare -a Ns_small=("10" "50" "100" "250" "500" "1000")
-sigma=0
-
-source /home/nnelsen/miniconda3/etc/profile.d/conda.sh
-conda activate fno
-
-for N in "${Ns_small[@]}"
-do
-    for data_suffix in "${dsl[@]}"
-    do
-        srun --exclusive --ntasks=1 python -u train_fno.py $save_prefix $data_suffix $N $d $sigma | tee ${save_prefix:0:1}_n${N}_d${d}_s${sigma}_${data_suffix::-7}.out &
-    done
-    wait
-done
-
-for N in "${Ns[@]}"
-do
-    for data_suffix in "${dsl[@]}"
-    do
-        srun --exclusive --ntasks=1 python -u train_fno.py $save_prefix $data_suffix $N $d $sigma | tee ${save_prefix:0:1}_n${N}_d${d}_s${sigma}_${data_suffix::-7}.out &
+COUNT=0
+for datsuf in "${dsl[@]}"; do
+    dir_name="./results/${svpref}${datsuf}"
+    mkdir -p ${dir_name}
+    for model in "${models[@]}"; do
+        for L in "${Ls[@]}"; do
+            for N in "${Ns[@]}"; do
+                job_name="${svpref:0:1}_n${N}_d${d}_${model}_L${L}_m${m}_w${w}_md${m1d}_wd${w1d}_${datsuf::-7}"
+                std="${dir_name}R-%x.%j"
+                scommand="sbatch --job-name=${job_name} --output=${std}.out --error=${std}.err train_fno.sbatch ${svpref} ${datsuf} ${N} ${d} ${model} ${L} ${m} ${w} ${m1d} ${w1d}"
+                
+                echo "submit command: $scommand"
+                
+                $scommand
+                
+                (( COUNT++ ))
+            done
+        done
     done
 done
-wait
-echo done
+
+echo ${COUNT} jobs

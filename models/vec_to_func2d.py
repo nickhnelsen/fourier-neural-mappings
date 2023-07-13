@@ -16,7 +16,8 @@ class FND2d(nn.Module):
                  padding=8,
                  d_out=1,
                  width_ldec=None,
-                 act='gelu'
+                 act='gelu',
+                 n_layers=4
                  ):
         """
         d_in            (int): number of input channels (dimension of input vectors)
@@ -29,6 +30,7 @@ class FND2d(nn.Module):
         d_out           (int): finite number of desired outputs (number of functions)
         width_ldec      (int): input channel width for FND layer
         act             (str): Activation function = tanh, relu, gelu, elu, or leakyrelu
+        n_layers        (int): Number of Fourier Layers, by default 4
         """
         super(FND2d, self).__init__()
 
@@ -45,6 +47,9 @@ class FND2d(nn.Module):
         else:
             self.width_ldec = width_ldec
         self.act = _get_act(act)
+        self.n_layers = n_layers
+        if self.n_layers is None:
+            self.n_layers = 4
             
         self.set_outputspace_resolution(s_outputspace)
         
@@ -52,13 +57,15 @@ class FND2d(nn.Module):
         
         self.ldec0 = LinearDecoder2d(self.width_ldec, self.width, self.modes1, self.modes2)
         
-        self.conv0 = SpectralConv2d(self.width, self.width, self.modes1, self.modes2)
-        self.conv1 = SpectralConv2d(self.width, self.width, self.modes1, self.modes2)
-        self.conv2 = SpectralConv2d(self.width, self.width, self.modes1, self.modes2)
+        self.speconvs = nn.ModuleList([
+            SpectralConv2d(self.width, self.width, self.modes1, self.modes2) 
+                for _ in range(self.n_layers - 1)]
+            )
 
-        self.w0 = nn.Conv2d(self.width, self.width, 1)
-        self.w1 = nn.Conv2d(self.width, self.width, 1)
-        self.w2 = nn.Conv2d(self.width, self.width, 1)
+        self.ws = nn.ModuleList([
+            nn.Conv2d(self.width, self.width, 1)
+                for _ in range(self.n_layers - 1)]
+            )
         
         self.mlp1 = MLP(self.width, self.width_final, self.d_out, act)
 
@@ -74,15 +81,12 @@ class FND2d(nn.Module):
         
         # Decode into functions on the torus
         x = self.ldec0(x, self.s_outputspace)
-
+        
         # Fourier integral operator layers on the torus
-        x = self.w0(x) + self.conv0(x)
-        x = self.act(x)
-
-        x = self.w1(x) + self.conv1(x)
-        x = self.act(x)
-
-        x = self.w2(x) + self.conv2(x)
+        for idx_layer, (speconv, w) in enumerate(zip(self.speconvs, self.ws)):
+            x = w(x) + speconv(x)
+            if idx_layer != self.n_layers - 2:
+                x = self.act(x)
            
         # Map from the torus into the output domain
         x = x[..., :-self.num_pad_outputspace[-2], :-self.num_pad_outputspace[-1]]
