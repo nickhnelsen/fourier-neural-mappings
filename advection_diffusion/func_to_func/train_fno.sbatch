@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --time=00:29:00
+#SBATCH --time=120:00:00
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=1
@@ -8,10 +8,7 @@
 #SBATCH --gres gpu:1
 #SBATCH --export=ALL
 #SBATCH --mail-user=nnelsen@caltech.edu
-#SBATCH --mail-type=BEGIN
-#SBATCH --mail-type=END
 #SBATCH --mail-type=FAIL
-#SBATCH --qos=debug
 
 
 echo ${1:0:1}_n${3}_d${4}_${5}_L${6}_m${7}_w${8}_md${9}_wd${10}_${2::-7}
