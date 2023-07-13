@@ -11,6 +11,7 @@ w=32
 m1d=24
 w1d=128
 
+COUNT=0
 for datsuf in "${dsl[@]}"; do
     dir_name="./results/${svpref}${datsuf}"
     mkdir -p ${dir_name}
@@ -24,7 +25,11 @@ for datsuf in "${dsl[@]}"; do
                 echo "submit command: $scommand"
                 
                 $scommand
+                
+                (( COUNT++ ))
             done
         done
     done
 done
+
+echo ${COUNT} jobs
