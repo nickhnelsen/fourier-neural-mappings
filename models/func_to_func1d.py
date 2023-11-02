@@ -90,7 +90,7 @@ class FNO1d(nn.Module):
         if self.s_outputspace is not None:
             x = x[..., :-self.num_pad_outputspace]
         else:
-            x = x[..., :-x_res//self.padding]
+            x = x[..., :-(x_res//self.padding)]
         
         # Final projection layer
         x = x.permute(0, 2, 1)
