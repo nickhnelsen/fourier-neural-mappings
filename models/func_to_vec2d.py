@@ -19,7 +19,8 @@ class FNF2d(nn.Module):
                  d_out=1,
                  width_lfunc=None,
                  act='gelu',
-                 n_layers=4
+                 n_layers=4,
+                 get_grid=True
                  ):
         """
         modes1, modes2  (int): Fourier mode truncation levels
@@ -48,10 +49,11 @@ class FNF2d(nn.Module):
             self.width_lfunc = width_lfunc
         self.act = _get_act(act)
         self.n_layers = n_layers
+        self.get_grid = get_grid
         if self.n_layers is None:
             self.n_layers = 4
         
-        self.fc0 = nn.Linear(self.d_in + self.d_physical, self.width)
+        self.fc0 = nn.Linear((self.d_in + self.d_physical if get_grid else self.d_in), self.width)
         
         self.speconvs = nn.ModuleList([
             SpectralConv2d(self.width, self.width, self.modes1, self.modes2)
@@ -78,7 +80,8 @@ class FNF2d(nn.Module):
         """
         # Lifting layer
         x = x.permute(0, 2, 3, 1)
-        x = torch.cat((x, get_grid2d(x.shape, x.device)), dim=-1)    # grid ``features''
+        if get_grid:
+            x = torch.cat((x, get_grid2d(x.shape, x.device)), dim=-1)    # grid ``features''
         x = self.fc0(x)
         x = x.permute(0, 3, 1, 2)
         

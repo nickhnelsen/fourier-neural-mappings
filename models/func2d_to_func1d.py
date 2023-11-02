@@ -21,7 +21,8 @@ class FNO2d1(nn.Module):
                  d_in=1,
                  d_out=1,
                  act='gelu',
-                 n_layers=4
+                 n_layers=4,
+                 get_grid=True
                  ):
         """
         modes1d         (int): Fourier mode truncation levels for 1D functions
@@ -35,6 +36,7 @@ class FNO2d1(nn.Module):
         d_out           (int): number of output channels (co-domain dimension of output space functions)
         act             (str): Activation function = tanh, relu, gelu, elu, or leakyrelu
         n_layers        (int): Number of Fourier Layers, by default 4
+        get_grid        (bool): Whether or not append grid coordinate as a feature for the input
         """
         super(FNO2d1, self).__init__()
 
@@ -55,7 +57,7 @@ class FNO2d1(nn.Module):
         
         self.set_outputspace_resolution(s_outputspace)
 
-        self.fc0 = nn.Linear(self.d_in + self.d_physical, self.width)
+        self.fc0 = nn.Linear((self.d_in + self.d_physical if get_grid else self.d_in),, self.width)
         
         self.speconvs = nn.ModuleList([
             SpectralConv2d(self.width, self.width, self.modes1, self.modes2)
@@ -84,7 +86,8 @@ class FNO2d1(nn.Module):
         # Lifting layer
         x_res = x.shape[-2:]
         x = x.permute(0, 2, 3, 1)
-        x = torch.cat((x, get_grid2d(x.shape, x.device)), dim=-1)    # grid ``features''
+        if self.get_grid:
+            x = torch.cat((x, get_grid2d(x.shape, x.device)), dim=-1)    # grid ``features''
         x = self.fc0(x)
         x = x.permute(0, 3, 1, 2)
         

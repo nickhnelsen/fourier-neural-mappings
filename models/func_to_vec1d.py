@@ -18,7 +18,8 @@ class FNF1d(nn.Module):
                  d_out=1,
                  width_lfunc=None,
                  act='gelu',
-                 n_layers=4
+                 n_layers=4,
+                 get_grid=True
                  ):
         """
         modes1          (int): Fourier mode truncation levels
@@ -30,6 +31,7 @@ class FNF1d(nn.Module):
         width_lfunc     (int): number of intermediate linear functionals to extract in FNF layer
         act             (str): Activation function = tanh, relu, gelu, elu, or leakyrelu
         n_layers        (int): Number of Fourier Layers, by default 4
+        get_grid        (bool): Whether or not append grid coordinate as a feature for the input
         """
         super(FNF1d, self).__init__()
 
@@ -46,10 +48,11 @@ class FNF1d(nn.Module):
             self.width_lfunc = width_lfunc
         self.act = _get_act(act)
         self.n_layers = n_layers
+        self.get_grid = get_grid
         if self.n_layers is None:
             self.n_layers = 4
         
-        self.fc0 = nn.Linear(self.d_in + self.d_physical, self.width)
+        self.fc0 = nn.Linear((self.d_in + self.d_physical if get_grid else self.d_in), self.width)
         
         self.speconvs = nn.ModuleList([
             SpectralConv1d(self.width, self.width, self.modes1)
@@ -76,7 +79,8 @@ class FNF1d(nn.Module):
         """
         # Lifting layer
         x = x.permute(0, 2, 1)
-        x = torch.cat((x, get_grid1d(x.shape, x.device)), dim=-1)    # grid ``features''
+        if self.get_grid:
+            x = torch.cat((x, get_grid1d(x.shape, x.device)), dim=-1)    # grid ``features''
         x = self.fc0(x)
         x = x.permute(0, 2, 1)
         
