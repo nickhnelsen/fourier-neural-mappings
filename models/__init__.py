@@ -9,3 +9,4 @@ from .vec_to_vec1d import FNN1d
 
 from .func1d_to_func2d import FNO1d2
 from .func2d_to_func1d import FNO2d1
+from .dnn import DNN

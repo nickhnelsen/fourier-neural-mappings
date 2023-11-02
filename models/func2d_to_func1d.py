@@ -57,7 +57,7 @@ class FNO2d1(nn.Module):
         
         self.set_outputspace_resolution(s_outputspace)
 
-        self.fc0 = nn.Linear((self.d_in + self.d_physical if get_grid else self.d_in),, self.width)
+        self.fc0 = nn.Linear((self.d_in + self.d_physical if get_grid else self.d_in), self.width)
         
         self.speconvs = nn.ModuleList([
             SpectralConv2d(self.width, self.width, self.modes1, self.modes2)
