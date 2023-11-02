@@ -80,7 +80,7 @@ class FNF2d(nn.Module):
         """
         # Lifting layer
         x = x.permute(0, 2, 3, 1)
-        if get_grid:
+        if self.get_grid:
             x = torch.cat((x, get_grid2d(x.shape, x.device)), dim=-1)    # grid ``features''
         x = self.fc0(x)
         x = x.permute(0, 3, 1, 2)
