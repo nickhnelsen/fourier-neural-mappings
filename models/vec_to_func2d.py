@@ -17,7 +17,8 @@ class FND2d(nn.Module):
                  d_out=1,
                  width_ldec=None,
                  act='gelu',
-                 n_layers=4
+                 n_layers=4,
+                 nonlinear_first=True
                  ):
         """
         d_in            (int): number of input channels (dimension of input vectors)
@@ -31,6 +32,7 @@ class FND2d(nn.Module):
         width_ldec      (int): input channel width for FND layer
         act             (str): Activation function = tanh, relu, gelu, elu, or leakyrelu
         n_layers        (int): Number of Fourier Layers, by default 4
+        nonlinear_first (bool): If True, performs nonlinear MLP on input before decoding
         """
         super(FND2d, self).__init__()
 
@@ -50,6 +52,7 @@ class FND2d(nn.Module):
         self.n_layers = n_layers
         if self.n_layers is None:
             self.n_layers = 4
+        self.nonlinear_first = nonlinear_first
             
         self.set_outputspace_resolution(s_outputspace)
         
@@ -77,7 +80,8 @@ class FND2d(nn.Module):
         The output resolution is determined by self.s_outputspace
         """
         # Nonlinear processing layer
-        x = self.mlp0(x)
+        if self.nonlinear_first:
+            x = self.mlp0(x)
         
         # Decode into functions on the torus
         x = self.ldec0(x, self.s_outputspace)

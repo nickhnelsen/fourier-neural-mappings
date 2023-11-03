@@ -18,7 +18,8 @@ class FNN2d(nn.Module):
                  width_ldec=None,
                  width_lfunc=None,
                  act='gelu',
-                 n_layers=4
+                 n_layers=4,
+                 nonlinear_first=True
                  ):
         """
         d_in            (int): number of input channels (dimension of input vectors)
@@ -32,6 +33,7 @@ class FNN2d(nn.Module):
         width_lfunc     (int): number of intermediate linear functionals to extract in FNF layer
         act             (str): Activation function = tanh, relu, gelu, elu, or leakyrelu
         n_layers        (int): Number of Fourier Layers, by default 4
+        nonlinear_first (bool): If True, performs nonlinear MLP on input before decoding
         """
         super(FNN2d, self).__init__()
 
@@ -57,6 +59,7 @@ class FNN2d(nn.Module):
             self.n_layers = 4
         if self.n_layers < 2:
             raise ValueError("n_layers for vec-to-vec models must be greater than or equal to 2")
+        self.nonlinear_first = nonlinear_first
         
         self.mlp0 = MLP(self.d_in, self.width_initial, self.width_ldec, act)
         
@@ -84,7 +87,8 @@ class FNN2d(nn.Module):
         Output shape:           (batch, self.d_out)
         """
         # Nonlinear processing layer
-        x = self.mlp0(x)
+        if self.nonlinear_first:
+            x = self.mlp0(x)
         
         # Decode into functions on the torus
         x = self.ldec0(x, self.s_latentspace)
