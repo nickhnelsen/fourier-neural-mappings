@@ -16,7 +16,7 @@ class DNN(nn.Module):
     def forward(self, x):
         for i, fc in enumerate(self.fcs):
             x = fc(x)
-            if i == self.layer - 1:
+            if i != self.layer - 1:
                 x = self.act(x)
         return x
 
