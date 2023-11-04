@@ -59,7 +59,10 @@ class FNN1d(nn.Module):
             raise ValueError("n_layers for vec-to-vec models must be greater than or equal to 2")
         self.nonlinear_first = nonlinear_first
         
-        self.mlp0 = MLP(self.d_in, self.width_initial, self.width_ldec, act)
+        if self.nonlinear_first:
+            self.mlp0 = MLP(self.d_in, self.width_initial, self.width_ldec, act)
+        else:
+            self.mlp0 = nn.Linear(self.d_in, self.width_ldec)
         
         self.ldec0 = LinearDecoder1d(self.width_ldec, self.width, self.modes1)
         
@@ -84,9 +87,8 @@ class FNN1d(nn.Module):
         Input shape (of x):     (batch, self.d_in)
         Output shape:           (batch, self.d_out)
         """
-        # Nonlinear processing layer
-        if self.nonlinear_first:
-            x = self.mlp0(x)
+        # Lifting layer
+        x = self.mlp0(x)
         
         # Decode into functions on the torus
         x = self.ldec0(x, self.s_latentspace)
