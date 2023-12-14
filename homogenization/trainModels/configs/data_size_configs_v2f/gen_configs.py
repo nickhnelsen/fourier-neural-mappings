@@ -2,16 +2,16 @@ import yaml
 import os
 
 modes = 12
-batch_size = 15
-epochs = 300
+batch_size = 25
+epochs = 400
 lr = 0.001
 # Data information
-data_path= '/groups/astuart/mtrautne/FNMdata/vor_data_Abar.pkl'
+data_path= '/groups/astuart/mtrautne/FNMdata/vor_data_v2f.pkl'
 model_name= 'vor_v2f_data_size'
 
 # Parameters for training
 Ntotal= 10000
-data_sizes = [2000, 4000, 6000, 8000, 9500]
+data_sizes = [10,50,250,1000,2000, 4000, 6000, 8000, 9500]
 USE_CUDA: True
 
 index = 1
@@ -25,7 +25,7 @@ for data_size in data_sizes:
     USE_CUDA = True
     config = {
         'data_path': data_path,
-        'model_name': 'hyperparam_compare/'+ model_name + '_' + str(data_size),
+        'model_name': 'size_compare/'+ model_name + '_' + str(data_size),
         'Ntotal': Ntotal,
         'N_train': data_size,
         'N_modes': N_modes,
@@ -35,7 +35,7 @@ for data_size in data_sizes:
         'lr': lr,
         'USE_CUDA': USE_CUDA
     }
-    with open(model_name + '_' + str(index) + '.yaml', 'w') as f:
+    with open(model_name + '_' + str(data_size) + '.yaml', 'w') as f:
         yaml.dump(config, f)
     index = index + 1
 

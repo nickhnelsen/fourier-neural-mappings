@@ -11,7 +11,7 @@ model_name= 'vor_f2v_data_size'
 
 # Parameters for training
 Ntotal= 10000
-data_sizes = [2000, 4000, 6000, 8000, 9500]
+data_sizes = [10,50,250,1000,2000, 4000, 6000, 8000, 9500]
 USE_CUDA: True
 
 index = 1

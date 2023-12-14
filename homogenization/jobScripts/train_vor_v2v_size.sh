@@ -11,22 +11,22 @@
 #SBATCH --mail-type=end
 #SBATCH --mail-type=fail
 #SBATCH --mail-user=mtrautne@caltech.edu
-#SBATCH --array=0-19
+#SBATCH --array=25-44
 
 cd ../trainModels
 
 PARRAY=(10 50 250 1000 2000 4000 6000 8000 9500)
 
-for ip1 in {0..3} # first 4 options
+for ip1 in {0..8} # 9 options
 do 
-  for i in {0..4} # 5 samples
+  for i in {0..4} # 5 sample
   do 
      let task_id=$ip1*5+$i
      printf $task_id"\n"
      if [ "$task_id" -eq "$SLURM_ARRAY_TASK_ID" ]
      then
         data_size=${PARRAY[$ip1]}
-	    python  -u train_FNM_f2v_model.py ./configs/data_size_configs_f2v/vor_f2v_data_size_${data_size}.yaml $i
+	    python  -u train_FNM_v2v_model.py ./configs/data_size_configs_v2v/vor_v2v_data_size_${data_size}.yaml $i
      fi
   done
 done
