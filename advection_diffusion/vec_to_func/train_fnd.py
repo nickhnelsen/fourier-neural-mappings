@@ -17,34 +17,20 @@ from advection_diffusion.helpers import get_qoi, trapz2
 #
 ################################################################
 # Process command line arguments
-# =============================================================================
-# print(sys.argv)
-# save_prefix = sys.argv[1]   # e.g., 'modelsize/', 'scalability/', 'efficiency/'
-# data_suffix = sys.argv[2]   # e.g., 'nu_inf_ell_p05_torch/' or 'nu_1p5_ell_p25_torch/'
-# N_train = int(sys.argv[3])  # training sample size
-# d_str = sys.argv[4]         # KLE dimension of training inputs (d = 1, 2, 5, 10, 15, 20, or 1000)
-# FNM_model = sys.argv[5]     # model name: 'FND2d', etc
-# FNM_layers = int(sys.argv[6])
-# FNM_modes = int(sys.argv[7])
-# FNM_width = int(sys.argv[8])
-# FNM_modes1d = int(sys.argv[9])
-# FNM_width1d = int(sys.argv[10])
-# =============================================================================
-
-# TODO: debug
-save_prefix = 'z_local_test_debug/'   # e.g., 'modelsize/', 'scalability/', 'efficiency/'
-data_suffix = 'nu_1p5_ell_p25_torch/'   # e.g., 'nu_inf_ell_p05_torch/' or 'nu_1p5_ell_p25_torch/'
-N_train = 10000  # training sample size
-d_str = '20'         # KLE dimension of training inputs (d = 1, 2, 5, 10, 15, 20, or 1000)
-FNM_model = 'FND2d'     # model name: 'FND2d', etc
-FNM_layers = 4
-FNM_modes = 12
-FNM_width = 32
-FNM_modes1d = FNM_modes
-FNM_width1d = FNM_width
+print(sys.argv)
+save_prefix = sys.argv[1]   # e.g., 'modelsize/', 'scalability/', 'efficiency/'
+data_suffix = sys.argv[2]   # e.g., 'nu_inf_ell_p05_torch/' or 'nu_1p5_ell_p25_torch/'
+N_train = int(sys.argv[3])  # training sample size
+d_str = sys.argv[4]         # KLE dimension of training inputs (d = 1, 2, 5, 10, 15, 20, or 1000)
+FNM_model = sys.argv[5]     # model name: 'FND2d', etc
+FNM_layers = int(sys.argv[6])
+FNM_modes = int(sys.argv[7])
+FNM_width = int(sys.argv[8])
+FNM_modes1d = int(sys.argv[9])
+FNM_width1d = int(sys.argv[10])
 
 # File I/O
-data_prefix = '/media/nnelsen/SharedHDD2TB/datasets/FNM/low_res/' # '/groups/astuart/nnelsen/data/FNM/low_res/'
+data_prefix = '/groups/astuart/nnelsen/data/FNM/low_res/'
 FLAG_save_model = True
 FLAG_save_plots = True
 SAVE_AFTER = 10
