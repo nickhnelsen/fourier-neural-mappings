@@ -31,20 +31,21 @@ from advection_diffusion.helpers import get_qoi, trapz2
 # FNM_width1d = int(sys.argv[10])
 # =============================================================================
 
-save_prefix = 'z_local_test/'   # e.g., 'modelsize/', 'scalability/', 'efficiency/'
+# TODO: debug
+save_prefix = 'z_local_test_debug/'   # e.g., 'modelsize/', 'scalability/', 'efficiency/'
 data_suffix = 'nu_1p5_ell_p25_torch/'   # e.g., 'nu_inf_ell_p05_torch/' or 'nu_1p5_ell_p25_torch/'
-N_train = 1000  # training sample size
-d_str = '1000'         # KLE dimension of training inputs (d = 1, 2, 5, 10, 15, 20, or 1000)
+N_train = 10000  # training sample size
+d_str = '20'         # KLE dimension of training inputs (d = 1, 2, 5, 10, 15, 20, or 1000)
 FNM_model = 'FND2d'     # model name: 'FND2d', etc
 FNM_layers = 4
 FNM_modes = 12
 FNM_width = 32
-FNM_modes1d = 12
-FNM_width1d = 32
+FNM_modes1d = FNM_modes
+FNM_width1d = FNM_width
 
 # File I/O
 data_prefix = '/media/nnelsen/SharedHDD2TB/datasets/FNM/low_res/' # '/groups/astuart/nnelsen/data/FNM/low_res/'
-FLAG_save_model = not True
+FLAG_save_model = True
 FLAG_save_plots = True
 SAVE_AFTER = 10
 
@@ -75,10 +76,8 @@ width1d = FNM_width1d
 n_layers = FNM_layers
 my_model = getattr(import_module('models'), FNM_model)
 if FNM_model == 'FND2d':
-    FLAG_2D = True
     modes_width_list = [modes1, modes2, width]
 elif FNM_model == 'FND1d':
-    FLAG_2D = False
     modes_width_list = [modes1d, width1d]
 else:
     raise ValueError("Only models FND2d and FND1d are currently supported.")
