@@ -15,37 +15,22 @@ TensorDatasetID = dataset_with_indices(TensorDataset)
 #
 ################################################################
 # Process command line arguments
-# =============================================================================
-# print(sys.argv)
-# save_prefix = sys.argv[1]   # e.g., 'modelsize/', 'scalability/', 'efficiency/'
-# data_suffix = sys.argv[2]   # e.g., 'nu_inf_ell_p05_torch/' or 'nu_1p5_ell_p25_torch/'
-# N_train = int(sys.argv[3])  # training sample size
-# d_str = sys.argv[4]         # KLE dimension of training inputs (d = 1, 2, 5, 10, 15, 20, or 1000)
-# FNM_model = sys.argv[5]     # model name: 'FNF2d' or 'FNF2d'
-# FNM_layers = int(sys.argv[6])
-# FNM_modes = int(sys.argv[7])
-# FNM_width = int(sys.argv[8])
-# FNM_modes1d = int(sys.argv[9])
-# FNM_width1d = int(sys.argv[10])
-# idx_qoi = [int(x) for x in sys.argv[11]]    # QoI indices (0 through 5) to learn, e.g.: "012345"
-# =============================================================================
-
-# TODO: debug
-save_prefix = 'z_local_test/'      # e.g., 'modelsize/', 'scalability/', 'efficiency/'
-data_suffix = 'nu_1p5_ell_p25_torch/'
-N_train = 3162
-d_str = '1000'
-FNM_model = 'FNN1d'    # model name: 'FNF2d' or 'FNF2d'
-FNM_layers = 4
-FNM_modes = 12
-FNM_width = 32
-FNM_modes1d = 16
-FNM_width1d = 64
-idx_qoi = [int(x) for x in "1234"]    # QoI indices (0 through 5) to learn, e.g.: "012345"
+print(sys.argv)
+save_prefix = sys.argv[1]   # e.g., 'modelsize/', 'scalability/', 'efficiency/'
+data_suffix = sys.argv[2]   # e.g., 'nu_inf_ell_p05_torch/' or 'nu_1p5_ell_p25_torch/'
+N_train = int(sys.argv[3])  # training sample size
+d_str = sys.argv[4]         # KLE dimension of training inputs (d = 1, 2, 5, 10, 15, 20, or 1000)
+FNM_model = sys.argv[5]     # model name: 'FNF2d' or 'FNF2d'
+FNM_layers = int(sys.argv[6])
+FNM_modes = int(sys.argv[7])
+FNM_width = int(sys.argv[8])
+FNM_modes1d = int(sys.argv[9])
+FNM_width1d = int(sys.argv[10])
+idx_qoi = [int(x) for x in sys.argv[11]]    # QoI indices (0 through 5) to learn, e.g.: "012345"
 
 # File I/O
-data_prefix = '/media/nnelsen/SharedHDD2TB/datasets/FNM/low_res/'  #'/groups/astuart/nnelsen/data/FNM/low_res/'
-FLAG_save_model = not True
+data_prefix = '/groups/astuart/nnelsen/data/FNM/low_res/'
+FLAG_save_model = True
 FLAG_save_plots = True
 SAVE_AFTER = 10
 
@@ -56,10 +41,9 @@ N_MC = 5*0 + 1
 # Sample size  
 N_test = 500        # number of validation samples to monitor during training
 
-# TODO: debug
 # Training
 batch_size = 20
-epochs = 502*0 + 202
+epochs = 502
 learning_rate = 1e-3
 weight_decay = 1e-4
 scheduler_step = 100
@@ -170,7 +154,6 @@ for loop in range(N_MC):
     # training
     #
     ################################################################    
-    # TODO: debug
     model = my_model(d_in, N_qoi, s_latentspace, *modes_width_list, n_layers=n_layers).to(device)
     print(model)
     print("FNN parameter count:", count_params(model))
