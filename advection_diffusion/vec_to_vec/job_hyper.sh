@@ -3,7 +3,7 @@
 svpref=hyper/
 declare -a dsl=("nu_1p5_ell_p25_torch/")
 declare -a Ns=("3162")
-declare -a models=("FNN1d", "FNN2d")
+declare -a models=("FNN1d")
 declare -a Ls=("3" "4")
 declare -a modes=("3" "6" "12" "18" "24" "36")
 declare -a constants=("144" "288" "576" "1152")
