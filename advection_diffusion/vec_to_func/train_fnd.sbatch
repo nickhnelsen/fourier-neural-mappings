@@ -1,10 +1,10 @@
 #!/bin/bash
 
-#SBATCH --time=120:00:00
+#SBATCH --time=99:00:00
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=1
-#SBATCH --mem=32G
+#SBATCH --mem=16G
 #SBATCH --gres gpu:1
 #SBATCH --export=ALL
 #SBATCH --mail-user=nnelsen@caltech.edu
