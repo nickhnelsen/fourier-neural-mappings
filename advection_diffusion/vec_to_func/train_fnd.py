@@ -36,7 +36,7 @@ FLAG_save_plots = True
 SAVE_AFTER = 10
 
 # Number of independent Monte Carlo loops over training trials
-N_MC = 5*0 + 1
+N_MC = 5
 
 # Sample size  
 N_test = 500        # number of validation samples to monitor during training
@@ -130,7 +130,8 @@ optimizer_dict = {}
 errors_all = []
 test_errors_all = []
 qoi_errors_all = []
-errors_test_list= []
+errors_test_list = []
+qoi_out_list = []
 
 # Begin simple MC loops
 for loop in range(N_MC):
@@ -317,6 +318,9 @@ for loop in range(N_MC):
              rel_test_error_list=np.asarray(errors_test_list),
              qoibl_vec=np.asarray(qoi_errors_all)
              )
+    qoi_out_list.append(qoi_out.numpy())
+    np.save(savepath + 'qoi_out_all' + obj_suffix_eval[:-3] + 'npy', np.asarray(qoi_out_list))
+    
 
 print('######### End of all', N_MC, 'MC loops\n')
 
