@@ -100,4 +100,68 @@ for idx_layer, layer in enumerate(layer_list):
 
 # %% Validation error
 
+
 # er = train_errors_TBA[..., -1, 1] # relative full qoi loss at final epoch
+
+data_type = 'hyper/'
+d_str = "1000"
+obj_prefix = 'train_errors_all'
+
+modes_list = [3, 6, 12, 18, 24, 36]
+constants_list = [144, 288, 576, 1152]
+qoi = "1234"
+N_train = 3162
+model = 'FNF2d'
+layer_list = ['L2', 'L4']
+
+style_list = ['ko:', 'C0d-.', 'C3s--', 'C1v-']
+color_list = ['k', 'C0', 'C3', 'C1']
+
+data_folder = data_prefix + data_type + data_suffix
+
+for idx_layer, layer in enumerate(layer_list):
+    plt.figure(10 + idx_layer)
+    
+    for idx_c, const in enumerate(constants_list):
+        er_mean = []
+        lb = []
+        ub = []
+        nstd = []
+        for i, mode in enumerate(modes_list):
+            w = const//mode
+            if mode==3 and w==384 and idx_layer==1: # TODO: bad job run, omit
+                modes_list = modes_list[1:]
+            else:
+                end_str = "m" + str(mode) + "_w" + str(w) + "_md" + str(mode) + "_wd" + str(w)
+                obj_suffix = '_n' + str(N_train) + '_d' + d_str +"_" + model + "_qoi" + \
+                    qoi + "_" + layer + "_" + end_str  + '.npy'
+                er = np.load(data_folder + obj_prefix + obj_suffix)
+                er = er[..., -1, 1]
+                m_tmp = np.mean(er,axis=0)
+                er_mean.append(m_tmp)
+                std = np.std(er,axis=0)
+                nstd.append(n_std*std)
+                lb.append(m_tmp - n_std*std)
+                ub.append(m_tmp + n_std*std)
+        
+        er_mean = np.asarray(er_mean)
+        lb = np.asarray(lb)
+        ub = np.asarray(ub)
+        nstd = np.asarray(nstd)
+        
+        plt.semilogy(modes_list, er_mean, style_list[idx_c], label="Size" + r' $=%d$' % (int(const)))
+        # plt.errorbar(modes_list, er_mean[:,idx_er_type], yerr=nstd[:,idx_er_type], color = color_list[idx_c])
+        # plt.fill_between(modes_list, lb[:,idx_er_type], ub[:,idx_er_type], facecolor=color_list[idx_c], alpha=0.2)
+    
+    handles, labels = plt.gca().get_legend_handles_labels()
+    # order = [1,2,3,4,0]
+    order = [0,1,2,3]
+    plt.legend([handles[idx] for idx in order],[labels[idx] for idx in order],loc=1,borderpad=borderpad,handlelength=handlelength).set_draggable(True)
+    plt.xlabel(r'Modes')
+    plt.ylabel(r'Relative Error')
+    # plt.title(r'Parameter Complexity')
+    # plt.grid()
+    # plt.ylim([y_lim_lower, yu[idx_er_type]])
+    
+    if save_plots:
+        plt.savefig(plot_folder + save_pref + qoi + "_" + layer + "_" + data_type[0] + type_list[idx_er_type] + data_suffix[:-7] + '_val' + '.pdf', format='pdf')
