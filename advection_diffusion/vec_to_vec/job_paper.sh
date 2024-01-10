@@ -7,9 +7,9 @@ declare -a ds=("2" "20" "1000")
 declare -a models=("FNN1d")
 declare -a Ls=("4")
 m=12
-w=32
+w=96
 m1d=12
-w1d=32
+w1d=96
 qoi=1234
 
 COUNT=0
