@@ -34,9 +34,8 @@ FLAG_save_model = True
 FLAG_save_plots = True
 SAVE_AFTER = 10
 
-# TODO: debug
 # Number of independent Monte Carlo loops over training trials
-N_MC = 5*0 + 1
+N_MC = 5
 
 # Sample size  
 N_test = 500        # number of validation samples to monitor during training
