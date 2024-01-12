@@ -1,11 +1,17 @@
 """
-From pyapprox repo: https://github.com/sandialabs/pyapprox/blob/master/pyapprox/util/configure_plots.py
+Adapted from pyapprox repo: https://github.com/sandialabs/pyapprox/blob/master/pyapprox/util/configure_plots.py
 """
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+mystyle = {
+        "pgf.rcfonts": False,
+        "pgf.texsystem": "pdflatex",   
+        "text.usetex": True,            # use latex for all text handling            
+        "font.family": "serif"
+        }
+mpl.rcParams.update(mystyle)
 mpl.rcParams['font.size'] = 16
 mpl.rcParams['lines.linewidth'] = 3
-mpl.rcParams['text.usetex'] = True # use latex for all text handling
 mpl.rcParams['savefig.bbox'] = 'tight'
 mpl.rcParams['savefig.format'] = 'pdf' # gives best resolution plots
 mpl.rcParams['axes.labelsize'] = 20

@@ -12,12 +12,31 @@ plt.rcParams['figure.dpi'] = 250
 plt.rcParams['savefig.dpi'] = 250
 plt.rc('legend', fontsize=14)
 
+linestyle_tuples = {
+     'loosely dotted':        (0, (1, 10)),
+     'dotted':                (0, (1, 1)),
+     'densely dotted':        (0, (1, 1)),
+     
+     'long dash with offset': (5, (10, 3)),
+     'loosely dashed':        (0, (5, 10)),
+     'dashed':                (0, (5, 5)),
+     'densely dashed':        (0, (5, 1)),
+
+     'loosely dashdotted':    (0, (3, 10, 1, 10)),
+     'dashdotted':            (0, (3, 5, 1, 5)),
+     'densely dashdotted':    (0, (3, 1, 1, 1)),
+
+     'dashdotdotted':         (0, (3, 5, 1, 5, 1, 5)),
+     'loosely dashdotdotted': (0, (3, 10, 1, 10, 1, 10)),
+     'densely dashdotdotted': (0, (3, 1, 1, 1, 1, 1))}
+
 # USER INPUT
 data_suffix = 'nu_1p5_ell_p25_torch/'
 idx_er_type = 1     # 1 (qoi loss), 0 = Bochner error (not good for advection-diffusion)
 n_std = 2
 
 save_plots = True
+FLAG_SEPARATE = True
 handlelength = 2.75
 borderpad = 0.15
 plot_folder = "./figures_compare_paper/"
@@ -32,8 +51,8 @@ eval_prefix = '/media/nnelsen/SharedHDD2TB/datasets/FNM/low_res/' + data_suffix 
 
 type_list = ['_boch_', '_loss_']
 yu = [1e0, 1e0, 1e0]
-y_lim_lower = [1e-4/4, 1e-3/2, 1e-3]
-const_list = [1e-2, 1.35e-0, 1.25e0]
+y_lim_lower = [1e-4/1.5, 1e-3/1.25, 1e-3/1.25]
+const_list = [2e-1, 1.35e-0, 1.25e0]
 
 save_pref = "compare_qoi"
 
@@ -72,7 +91,6 @@ data_to_plot = np.zeros([len(d_list), len(model_list), len(N_train_list), 2]) # 
 for idx_d, d_str in enumerate(d_list):
     # Load eval data
     qoi_eval = torch.load(eval_prefix + d_str + 'd/' + 'qoi.pt')['qoi'][:-N_test,...,idx_qoi].clone()
-    N_qoi = qoi_eval.shape[-1]
     
     for idx_loop, (model, mstr, end_str, data_folder) in enumerate(zip(model_list,
                                           model_str,
@@ -112,26 +130,34 @@ for idx_d, d_str in enumerate(d_list):
 # %% Plotting
 
 # TODO: add errorbar ticks
-
-style_list = ['ko:', 'C0d-.', 'C3s--', 'C1v:', 'C2X-']
-color_list = ['k', 'C0', 'C3', 'C1', 'C2']
+marker_list = ['o', 'd', 's', 'v', 'X', "*", "P", "^"]
+# style_list = ['ko:', 'C0d-.', 'C3s--', 'C1v:', 'C2X-']
+style_list = [':', '-.', '--', ':', '-']
+color_list = ['k', 'C0', 'C3', 'C1', 'C2', 'C5', 'C4', 'C6', 'C7', 'C8', 'C9']
+msz = 11
 
 for idx_d, d_str in enumerate(d_list):
     plt.figure(idx_d)
     
-    plt.loglog(N_train_list, const_list[idx_d]*N_train_list**(-0.5), ls=(0, (3, 1, 1, 1, 1, 1)), color='darkgray', label=r'$N^{-1/2}$')
+    # plt.loglog(N_train_list, const_list[idx_d]*N_train_list**(-0.5), ls=(0, (3, 1, 1, 1, 1, 1)), color='darkgray', label=r'$N^{-1/2}$')
+    plt.loglog(N_train_list, const_list[idx_d]*N_train_list**(-0.5), ls='-', color='darkgray', label=r'$N^{-1/2}$')
+
         
     for i in range(len(model_list)):
         errors = data_to_plot[idx_d, i, :, 0]
         stds = data_to_plot[idx_d, i, :, 1]
-        lb = errors - n_std*stds
-        ub = errors + n_std*stds
-        plt.loglog(N_train_list, errors, style_list[i], label=model_str[i])
-        plt.fill_between(N_train_list, lb, ub, facecolor=color_list[i], alpha=0.2)
+        twosigma = np.maximum(n_std*stds, 1e-6)
+        print(twosigma)
+        lb = errors - twosigma
+        ub = errors + twosigma
+        # plt.loglog(N_train_list, errors, style_list[i], label=model_str[i])
+        plt.loglog(N_train_list, errors, ls=style_list[i], color=color_list[i], marker=marker_list[i], markersize=msz, label=model_str[i])
+        plt.fill_between(N_train_list, lb, ub, facecolor=color_list[i], alpha=0.1)
     
     handles, labels = plt.gca().get_legend_handles_labels()
     order = [1,2,3,4,5,0]
-    plt.legend([handles[idx] for idx in order],[labels[idx] for idx in order],loc=1,borderpad=borderpad,handlelength=handlelength).set_draggable(True)
+    # plt.legend([handles[idx] for idx in order],[labels[idx] for idx in order],loc=3,borderpad=borderpad,handlelength=handlelength).set_draggable(True)
+    plt.legend([handles[idx] for idx in order],[labels[idx] for idx in order],loc=3).set_draggable(True)
     plt.xlabel(r'$N$')
     plt.ylabel(r'Average Relative Error')
     plt.grid()
