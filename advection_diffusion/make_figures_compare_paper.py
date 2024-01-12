@@ -7,10 +7,8 @@ from util import plt
 plt.close("all")
 
 plt.rcParams['figure.figsize'] = [6.0, 6.0]     # [6.0, 4.0]
-plt.rcParams['font.size'] = 16
 plt.rcParams['figure.dpi'] = 250
 plt.rcParams['savefig.dpi'] = 250
-plt.rc('legend', fontsize=14)
 
 linestyle_tuples = {
      'solid':                 '-',
@@ -41,8 +39,6 @@ n_std = 2
 save_plots = True
 FLAG_SEPARATE = not True
 plot_tol = 1e-6
-handlelength = 4.25     # 2.75
-borderpad = 0.4     # 0.15
 plot_folder = "./figures_compare_paper/"
 os.makedirs(plot_folder, exist_ok=True)
 
@@ -54,8 +50,8 @@ data_prefix_dnn ='/media/nnelsen/SharedHDD2TB/datasets/FNM/low_res/advection_dif
 eval_prefix = '/media/nnelsen/SharedHDD2TB/datasets/FNM/low_res/' + data_suffix + 'testing/'
 
 type_list = ['_boch_', '_loss_']
-yu = [1e0, 1e0, 1e0]
-y_lim_lower = [1e-4/1.5, 1e-3/1.25, 1e-3/1.25]
+yu = [1.25e0, 1.25e0, 1.25e0]
+y_lim_lower = [1e-4/1.66, 1e-3/1.25, 1e-3/1.25]
 const_list = [2e-1, 0.9e-1, 0.75e0]
 
 save_pref = "compare_qoi"
@@ -138,7 +134,21 @@ marker_list = ['o', 'd', 's', 'v', 'X', "*", "P", "^"]
 style_list = ['-.', linestyle_tuples['dotted'], linestyle_tuples['densely dashdotted'],
               linestyle_tuples['densely dashed'], linestyle_tuples['densely dashdotdotted']]
 color_list = ['k', 'C0', 'C3', 'C1', 'C2', 'C5', 'C4', 'C6', 'C7', 'C8', 'C9']
-msz = 11
+
+if FLAG_SEPARATE:
+    plt.rcParams['font.size'] = 16
+    plt.rc('legend', fontsize=14)
+    plt.rcParams['lines.linewidth'] = 3
+    msz = 11
+    handlelength = 4.25     # 2.75
+    borderpad = 0.4     # 0.15
+else:
+    plt.rcParams['font.size'] = 18
+    plt.rc('legend', fontsize=18)
+    plt.rcParams['lines.linewidth'] = 4
+    msz = 14
+    handlelength = 4.25     # 2.75
+    borderpad = 0.25     # 0.15
 
 for idx_d, d_str in enumerate(d_list):
     plt.figure(idx_d)
@@ -167,10 +177,11 @@ for idx_d, d_str in enumerate(d_list):
             plt.savefig(plot_folder + save_pref + qoi + "_d" + d_str + type_list[idx_er_type] + data_suffix[:-7] + '_sep' + '.pdf', format='pdf')
     else:
         if idx_d==0:
-            plt.legend([handles[idx] for idx in order],[labels[idx] for idx in order],loc=1, handlelength=handlelength).set_draggable(True)
+            plt.legend([handles[idx] for idx in order],[labels[idx] for idx in order],loc=1, borderpad=borderpad, handlelength=handlelength).set_draggable(True)
             plt.ylabel(r'Average Relative Error')
         plt.xlabel(r'$N$')
         plt.grid()
         plt.ylim([y_lim_lower[idx_d], yu[idx_d]])
         if save_plots:
-            plt.savefig(plot_folder + save_pref + qoi + "_d" + d_str + type_list[idx_er_type] + data_suffix[:-7] + '.pdf', format='pdf')
+            plt.savefig(plot_folder + 'ad_d' + d_str + '_big' + '.pdf', format='pdf')
+            # plt.savefig(plot_folder + save_pref + qoi + "_d" + d_str + type_list[idx_er_type] + data_suffix[:-7] + '.pdf', format='pdf')
