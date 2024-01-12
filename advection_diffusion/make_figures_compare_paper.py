@@ -13,6 +13,9 @@ plt.rcParams['savefig.dpi'] = 250
 plt.rc('legend', fontsize=14)
 
 linestyle_tuples = {
+     'solid':                 '-',
+     'dashdot':               '-.',
+     
      'loosely dotted':        (0, (1, 10)),
      'dotted':                (0, (1, 1)),
      'densely dotted':        (0, (1, 1)),
@@ -36,9 +39,10 @@ idx_er_type = 1     # 1 (qoi loss), 0 = Bochner error (not good for advection-di
 n_std = 2
 
 save_plots = True
-FLAG_SEPARATE = True
-handlelength = 2.75
-borderpad = 0.15
+FLAG_SEPARATE = not True
+plot_tol = 1e-6
+handlelength = 4.25     # 2.75
+borderpad = 0.4     # 0.15
 plot_folder = "./figures_compare_paper/"
 os.makedirs(plot_folder, exist_ok=True)
 
@@ -52,7 +56,7 @@ eval_prefix = '/media/nnelsen/SharedHDD2TB/datasets/FNM/low_res/' + data_suffix 
 type_list = ['_boch_', '_loss_']
 yu = [1e0, 1e0, 1e0]
 y_lim_lower = [1e-4/1.5, 1e-3/1.25, 1e-3/1.25]
-const_list = [2e-1, 1.35e-0, 1.25e0]
+const_list = [2e-1, 0.9e-1, 0.75e0]
 
 save_pref = "compare_qoi"
 
@@ -96,7 +100,7 @@ for idx_d, d_str in enumerate(d_list):
                                           model_str,
                                           end_str_list,
                                           data_folder_list)):
-            
+        
         er_mean = []
         er_std = []
         if mstr=="F2F" or mstr=="V2F": # Get specific QoI for function output methods
@@ -129,39 +133,44 @@ for idx_d, d_str in enumerate(d_list):
 
 # %% Plotting
 
-# TODO: add errorbar ticks
 marker_list = ['o', 'd', 's', 'v', 'X', "*", "P", "^"]
 # style_list = ['ko:', 'C0d-.', 'C3s--', 'C1v:', 'C2X-']
-style_list = [':', '-.', '--', ':', '-']
+style_list = ['-.', linestyle_tuples['dotted'], linestyle_tuples['densely dashdotted'],
+              linestyle_tuples['densely dashed'], linestyle_tuples['densely dashdotdotted']]
 color_list = ['k', 'C0', 'C3', 'C1', 'C2', 'C5', 'C4', 'C6', 'C7', 'C8', 'C9']
 msz = 11
 
 for idx_d, d_str in enumerate(d_list):
     plt.figure(idx_d)
     
-    # plt.loglog(N_train_list, const_list[idx_d]*N_train_list**(-0.5), ls=(0, (3, 1, 1, 1, 1, 1)), color='darkgray', label=r'$N^{-1/2}$')
-    plt.loglog(N_train_list, const_list[idx_d]*N_train_list**(-0.5), ls='-', color='darkgray', label=r'$N^{-1/2}$')
-
+    plt.loglog(N_train_list, const_list[idx_d]*N_train_list**(-0.5), ls='--', color='darkgray', label=r'$N^{-1/2}$')
         
     for i in range(len(model_list)):
         errors = data_to_plot[idx_d, i, :, 0]
         stds = data_to_plot[idx_d, i, :, 1]
-        twosigma = np.maximum(n_std*stds, 1e-6)
-        print(twosigma)
-        lb = errors - twosigma
+        twosigma = n_std*stds
+        lb = np.maximum(errors - twosigma, plot_tol)
         ub = errors + twosigma
-        # plt.loglog(N_train_list, errors, style_list[i], label=model_str[i])
         plt.loglog(N_train_list, errors, ls=style_list[i], color=color_list[i], marker=marker_list[i], markersize=msz, label=model_str[i])
-        plt.fill_between(N_train_list, lb, ub, facecolor=color_list[i], alpha=0.1)
+        # plt.errorbar(N_train_list, errors, yerr=twosigma, ls=style_list[i], color=color_list[i])
+        plt.fill_between(N_train_list, lb, ub, facecolor=color_list[i], alpha=0.125)
     
     handles, labels = plt.gca().get_legend_handles_labels()
     order = [1,2,3,4,5,0]
-    # plt.legend([handles[idx] for idx in order],[labels[idx] for idx in order],loc=3,borderpad=borderpad,handlelength=handlelength).set_draggable(True)
-    plt.legend([handles[idx] for idx in order],[labels[idx] for idx in order],loc=3).set_draggable(True)
-    plt.xlabel(r'$N$')
-    plt.ylabel(r'Average Relative Error')
-    plt.grid()
-    plt.ylim([y_lim_lower[idx_d], yu[idx_d]])
-    
-    if save_plots:
-        plt.savefig(plot_folder + save_pref + qoi + "_d" + d_str + type_list[idx_er_type] + data_suffix[:-7] + '.pdf', format='pdf')
+    if FLAG_SEPARATE:
+        plt.legend([handles[idx] for idx in order],[labels[idx] for idx in order],loc='best', borderpad=borderpad,handlelength=handlelength).set_draggable(True)
+        plt.xlabel(r'$N$')
+        plt.ylabel(r'Average Relative Error')
+        plt.grid()
+        plt.ylim([y_lim_lower[idx_d], yu[idx_d]])
+        if save_plots:
+            plt.savefig(plot_folder + save_pref + qoi + "_d" + d_str + type_list[idx_er_type] + data_suffix[:-7] + '_sep' + '.pdf', format='pdf')
+    else:
+        if idx_d==0:
+            plt.legend([handles[idx] for idx in order],[labels[idx] for idx in order],loc=1, handlelength=handlelength).set_draggable(True)
+            plt.ylabel(r'Average Relative Error')
+        plt.xlabel(r'$N$')
+        plt.grid()
+        plt.ylim([y_lim_lower[idx_d], yu[idx_d]])
+        if save_plots:
+            plt.savefig(plot_folder + save_pref + qoi + "_d" + d_str + type_list[idx_er_type] + data_suffix[:-7] + '.pdf', format='pdf')

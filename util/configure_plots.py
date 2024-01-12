@@ -28,10 +28,14 @@ mpl.rcParams['text.latex.preamble'] = r'\usepackage{amsmath}\usepackage{amssymb}
 # in legend but line will not plotted
 
 linestyle_tuples = {
+     'solid':                 '-',
+     'dashdot':               '-.',
+     
      'loosely dotted':        (0, (1, 10)),
      'dotted':                (0, (1, 1)),
      'densely dotted':        (0, (1, 1)),
-
+     
+     'long dash with offset': (5, (10, 3)),
      'loosely dashed':        (0, (5, 10)),
      'dashed':                (0, (5, 5)),
      'densely dashed':        (0, (5, 1)),
