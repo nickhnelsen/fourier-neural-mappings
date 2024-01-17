@@ -95,9 +95,6 @@ v2f_2std_errors = 2*np.std(v2f_errors, axis=0)
 v2v_mean_errors = np.mean(v2v_errors, axis=0)
 v2v_2std_errors = 2*np.std(v2v_errors, axis=0)
 
-print(v2f_mean_errors)
-print(v2f_2std_errors)
-
 # Plot the results
 plt.figure(figsize=(10,10))
 plt.plot(data_sizes, f2f_mean_errors, label='F2F',marker = shapes[1],color = CB_color_cycle[0],linewidth=linewidth,markersize=markersize)

@@ -25,7 +25,7 @@ for data_size in data_sizes:
     USE_CUDA = True
     config = {
         'data_path': data_path,
-        'model_name': 'hyperparam_compare/'+ model_name + '_' + str(data_size),
+        'model_name': 'size_compare/'+ model_name + '_' + str(data_size),
         'Ntotal': Ntotal,
         'N_train': data_size,
         'N_modes': N_modes,

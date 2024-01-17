@@ -2,11 +2,13 @@ import yaml
 import numpy as np
 import matplotlib.pyplot as plt
 import pdb
+# import randomness
+import numpy.random as random
 """
 Read error .yml files and process them into a table for comparison between different hyperparameters
 """
 config_c = 36
-name_start = 'vor_model_hyp_size_'
+name_start = 'vor_model_v2v_hyp_size_'
 errors = np.zeros((config_c, 2))
 b_sizes = np.zeros((config_c, 1))
 modes = np.zeros((config_c, 1))
@@ -27,6 +29,11 @@ for index in range(config_c):
         
 
 err_ind =1
+# add noise to all
+b_sizes = b_sizes + random.normal(0, 0.5, (config_c, 1))
+modes = modes + random.normal(0, 0.5, (config_c, 1))
+epochs = epochs + random.normal(0, 0.5, (config_c, 1))
+
 # Create error heatmaps for pairs of hyperparameters
 # Batch size vs. modes
 fig, ax = plt.subplots(3,2)
@@ -61,7 +68,7 @@ fig.colorbar(ax21,ax = ax[2,1])
 # Label axes with modes corresponding to each row/column
 # Add space between figures
 fig.tight_layout(pad=1.0)
-plt.savefig('../../Figures/hyp_f2v_eval.pdf')
+plt.savefig('../../Figures/hyp_v2v_eval.pdf')
 
 # Print minimum errors and corresponding hyperparameters
 min_ind = np.argmin(errors[:, err_ind])

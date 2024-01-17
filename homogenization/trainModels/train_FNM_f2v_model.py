@@ -190,4 +190,5 @@ if __name__ == "__main__":
         model_index = sys.argv[2]
         config['model_name'] = config['model_name'] + '_' + str(model_index)
     
+    print(config['model_name'])
     train_model(config)

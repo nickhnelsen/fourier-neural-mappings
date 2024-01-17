@@ -11,7 +11,7 @@
 #SBATCH --mail-type=end
 #SBATCH --mail-type=fail
 #SBATCH --mail-user=mtrautne@caltech.edu
-#SBATCH --array=0-19
+#SBATCH --array=16-19
 
 cd ../trainModels
 
@@ -19,9 +19,9 @@ PARRAY=(10 50 250 1000 2000 4000 6000 8000 9500)
 
 for ip1 in {0..3} # first 4 options
 do 
-  for i in {0..4} # 5 samples
+  for i in {4..4} # 4th  sample only
   do 
-     let task_id=$ip1*5+$i
+     let task_id=$i*4+$ip1
      printf $task_id"\n"
      if [ "$task_id" -eq "$SLURM_ARRAY_TASK_ID" ]
      then
