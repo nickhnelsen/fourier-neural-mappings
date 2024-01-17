@@ -5,11 +5,16 @@ from util import plt
 
 plt.close("all")
 
+fsz=16
 plt.rcParams['figure.figsize'] = [6.0, 4.0]     # [6.0, 4.0]
 plt.rcParams['figure.dpi'] = 250
 plt.rcParams['savefig.dpi'] = 250
-plt.rcParams['font.size'] = 16
-plt.rc('legend', fontsize=14)
+plt.rcParams['font.size'] = fsz
+plt.rc('legend', fontsize=fsz)
+plt.rcParams['axes.labelsize'] = fsz
+plt.rcParams['axes.titlesize'] = fsz
+plt.rcParams['xtick.labelsize'] = fsz
+plt.rcParams['ytick.labelsize'] = fsz
 plt.rcParams['lines.linewidth'] = 3
 msz = 8
 handlelength = 2.75     # 2.75
@@ -82,7 +87,7 @@ for idx in range(len(c_list)):
     for i in range(len(r_dot)):
         plt.plot(r_dot[i], rho_dot[i], 'C5o', markersize=msz, alpha=0.75, markeredgecolor='C5') 
 
-plt.legend(loc='best', borderpad=borderpad,handlelength=handlelength).set_draggable(True)
+plt.legend(framealpha=1, loc='best', borderpad=borderpad,handlelength=handlelength).set_draggable(True)
 plt.xlabel(r'$r$, QoI Decay Exponent')
 plt.ylabel(r'Convergence Rate Exponent')
 # plt.xticks(np.arange(-5, 5, 1.0))
