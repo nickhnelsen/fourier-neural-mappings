@@ -45,6 +45,7 @@ f2f_errors = np.ones((5, 9))
 f2v_errors = np.ones((5, 9))
 v2f_errors = np.ones((5, 9))
 v2v_errors = np.ones((5, 9))
+dnn_errors = np.ones((5, 9))
 
 err_type = 'Abar_abs_error_mean'
 for sample in range(5):
@@ -77,6 +78,12 @@ for sample in range(5):
             error_dict = yaml.load(f, Loader=yaml.FullLoader)
             v2v_errors[sample, data_sizes.index(datasize)] = error_dict[err_type]    
 
+        dnn_error_file = '/groups/astuart/mtrautne/FNM/FourierNeuralMappings/homogenization/trainModels/trainedModels/size_compare' + '/vor_model_dnn_size_' + str(datasize) + '_' + str(sample) + '_errors.yml'
+        # read error file and extract Abar error
+        with open(dnn_error_file, 'r') as f:
+            error_dict = yaml.load(f, Loader=yaml.FullLoader)
+            dnn_errors[sample, data_sizes.index(datasize)] = error_dict[err_type]
+
 # Add the errors for the 9500 data size
 for sample in range(5):
     vor_error_file = '/groups/astuart/mtrautne/FNM/FourierNeuralMappings/homogenization/trainModels/trainedModels/size_compare/vor_data_9500_' + str(sample) + '_new_errors.yml'
@@ -94,6 +101,8 @@ v2f_mean_errors = np.mean(v2f_errors, axis=0)
 v2f_2std_errors = 2*np.std(v2f_errors, axis=0)
 v2v_mean_errors = np.mean(v2v_errors, axis=0)
 v2v_2std_errors = 2*np.std(v2v_errors, axis=0)
+dnn_mean_errors = np.mean(dnn_errors, axis=0)
+dnn_2std_errors = 2*np.std(dnn_errors, axis=0)
 
 print(v2f_mean_errors)
 print(v2f_2std_errors)
@@ -112,7 +121,8 @@ plt.fill_between(data_sizes, v2f_mean_errors - v2f_2std_errors, v2f_mean_errors 
 plt.plot(data_sizes, v2v_mean_errors, label='V2V',marker = shapes[3],color = CB_color_cycle[3],linewidth=linewidth,markersize=markersize)
 plt.errorbar(data_sizes, v2v_mean_errors, yerr=v2v_2std_errors,color = CB_color_cycle[3])
 plt.fill_between(data_sizes, v2v_mean_errors - v2v_2std_errors, v2v_mean_errors + v2v_2std_errors, alpha=0.2, color = CB_color_cycle[3])
-
+plt.errorbar(data_sizes, dnn_mean_errors, yerr=dnn_2std_errors,label='DNN',marker = shapes[4],color = CB_color_cycle[4],linewidth=linewidth,markersize=markersize)
+plt.fill_between(data_sizes, dnn_mean_errors - dnn_2std_errors, dnn_mean_errors + dnn_2std_errors, alpha=0.2, color = CB_color_cycle[4])
 plt.legend(fontsize=fontsize)
 plt.xlabel('Number of Training Samples',fontsize=fontsize)
 plt.ylabel(r'Mean Absolute $\overline{A}$ Error',fontsize=fontsize)
@@ -147,6 +157,10 @@ y = np.log(v2v_mean_errors)
 m, b = np.polyfit(x, y, 1)
 print('V2V slope: ', m)
 
+y = np.log(dnn_mean_errors)
+m, b = np.polyfit(x, y, 1)
+print('DNN slope: ', m)
+
 # make not scientific notation
 # Plot a line with slope -1/2
 x = np.linspace(10,9500,100)
@@ -156,7 +170,7 @@ plt.text(0.3,0.6,r'$\mathcal{O}(N^{-1/2})$',fontsize=fontsize,transform=plt.gca(
 
 # reverse legend order
 handles, labels = plt.gca().get_legend_handles_labels()
-order = [3,1,2,0]
+order = [3,1,4,2,0]
 plt.legend([handles[idx] for idx in order],[labels[idx] for idx in order],fontsize=fontsize)
 
 plt.savefig('data_size_mean_compare.pdf',bbox_inches='tight')
