@@ -36,7 +36,7 @@ data_suffix = 'nu_1p5_ell_p25_torch/'
 idx_er_type = 1     # 1 (qoi loss), 0 = Bochner error (not good for advection-diffusion)
 n_std = 2
 
-save_plots = True
+save_plots = not True
 FLAG_SEPARATE = not True
 plot_tol = 1e-6
 plot_folder = "./figures_compare_paper/"
@@ -70,7 +70,7 @@ end_str_dnn = "m0_w2048_md0_wd2048"
 
 N_train_list = np.array([10, 32, 100, 316, 1000, 3162, 10000])
 model_list = ['FNO2d', 'FNF2d', 'FND2d', 'FNN1d', 'DNN']
-model_str = ['F2F', 'F2V', 'V2F', 'V2V', 'DNN']
+model_str = ['F2F', 'F2V', 'V2F', 'V2V', 'NN']
 d_list = ['2', '20', '1000']
 layer = 'L4'
 
@@ -111,7 +111,7 @@ for idx_d, d_str in enumerate(d_list):
                 er_mean.append(np.mean(er,axis=0))
                 er_std.append(np.std(er,axis=0))
         else:
-            if mstr=="DNN":
+            if mstr=="NN":
                 layer_tmp = 'L3'
             else:
                 layer_tmp = layer
