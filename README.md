@@ -2,10 +2,10 @@
 Fourier Neural Mappings (FNMs) generalize Fourier Neural Operators (FNOs) by allowing the input space and/or the output space to be finite-dimensional (instead of both being purely infinite-dimensional function spaces as with FNO). This is especially relevant for surrogate modeling tasks in uncertainty quantification, inverse problems, and design optimization, where a finite number of parameters or quantities of interest (QoIs) characterize the inputs and/or outputs.
 
 In particular, FNMs are able to accommodate
-* `nonlinear functions (V2V)`: *Fourier Neural Networks* mapping vectors to vectors (going through a latent function space in between);
-* `nonlinear functionals (F2V)`: *Fourier Neural Functionals* mapping functions to vectors (a.k.a. nonlinear encoders);
-* `nonlinear decoders (V2F)`: *Fourier Neural Decoders mapping* vectors to functions; and of course
-* `nonlinear operators (F2F)`: *Fourier Neural Operators mapping* functions to functions.
+* **nonlinear functions (V2V)**: *Fourier Neural Networks* mapping vectors to vectors (going through a latent function space in between);
+* **nonlinear functionals (F2V)**: *Fourier Neural Functionals* mapping functions to vectors (a.k.a. nonlinear encoders);
+* **nonlinear decoders (V2F)**: *Fourier Neural Decoders mapping* vectors to functions; and of course
+* **nonlinear operators (F2F)**: *Fourier Neural Operators mapping* functions to functions.
 
 In `fourier-neural-mappings`, the network layers in all four types of mappings above are efficiently implemented (via FFT) in Fourier space in a function-space consistent way.
 
@@ -27,7 +27,7 @@ conda deactivate
 
 The individual examples may require additional packages to generate and process the data, train the models, etc. Please refer to the README instructions within each directory, if available.
 
-## Data
+## Data (TBD!!!!)
 The data sets are https://data.caltech.edu/records/20091, which contain 8 `*.npy` files:
 1. Navier stokes equation : NavierStokes_inputs.npy & NavierStokes_outputs.npy. 
 2. Helmholtz equation : Helmholtz_inputs.npy & Helmholtz_outputs.npy. 
@@ -36,7 +36,7 @@ The data sets are https://data.caltech.edu/records/20091, which contain 8 `*.npy
 
 The data are stored as nx by ny by ndata arrays (2d problems) or nx by ndata arrays (1d problems).
 
-## Running the example
+## Running the example (TBD!!!!)
 In the script ``train.py``, assign in the variable ``data_path`` the global path to the data file ``burgers_data_R10.mat``.
 
 The example may then be run as
