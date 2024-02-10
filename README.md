@@ -7,7 +7,7 @@ In particular, FNMs are able to accommodate
 * **nonlinear decoders (V2F)**: *Fourier Neural Decoders mapping* vectors to functions; and of course
 * **nonlinear operators (F2F)**: *Fourier Neural Operators mapping* functions to functions.
 
-In `fourier-neural-mappings`, the network layers in all four types of mappings above are efficiently implemented (via FFT) in Fourier space in a function-space consistent way.
+In `fourier-neural-mappings`, the network layers in all four types of mappings above are efficiently implemented (via FFT) in Fourier space in a function-space consistent way. The code defaults to running on GPU, if one is available.
 
 ## Installation
 The command
@@ -28,29 +28,12 @@ conda deactivate
 The individual examples may require additional packages to generate and process the data, train the models, etc. Please refer to the README instructions within each directory, if available.
 
 ## Data (TBD!!!!)
-The data sets are https://data.caltech.edu/records/20091, which contain 8 `*.npy` files:
-1. Navier stokes equation : NavierStokes_inputs.npy & NavierStokes_outputs.npy. 
-2. Helmholtz equation : Helmholtz_inputs.npy & Helmholtz_outputs.npy. 
-3. Structural mechanics equation : StructuralMechanics_inputs.npy & StructuralMechanics_outputs.npy. 
-4. Advection equation : Advection_inputs.npy & Advection_outputs.npy. 
+The data may be downloaded at https://data.caltech.edu/records/XXXXX, which contain 3 `*.zip` files:
+1. advection_diffusion: train and test sets for KLE dimension 2, 20, 1000. 
+2. airfoil: deformation map (X,Y) coordinates, pressure field, and control nodes.
+3. materials: V2V, F2V, V2F, and F2F formats.
 
-The data are stored as nx by ny by ndata arrays (2d problems) or nx by ndata arrays (1d problems).
-
-## Running the example (TBD!!!!)
-In the script ``train.py``, assign in the variable ``data_path`` the global path to the data file ``burgers_data_R10.mat``.
-
-The example may then be run as
-```
-python -u train.py M N J 0 lambda my_path
-```
-where
-* ``M`` is the number of random features,
-* ``N`` is the number of training data pairs,
-* ``J`` is the desired spatial resolution for training and testing.
-* ``lambda`` is the regularization parameter
-* ``my_path`` is the output directory
-
-The code defaults to running on GPU, if one is available.
+The data are stored as PyTorch `*.pt` files, `*.npy` arrays, or pickle `*.pkl` files.
 
 ## Contribute
 You are welcome to submit an issue for any questions related to `fourier-neural-mappings` or to contribute to the code by submitting pull requests.
