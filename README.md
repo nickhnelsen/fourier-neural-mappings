@@ -39,7 +39,7 @@ The data are stored as PyTorch `*.pt` files, `*.npy` arrays, or pickle `*.pkl` f
 You are welcome to submit an issue for any questions related to `fourier-neural-mappings` or to contribute to the code by submitting pull requests.
 
 ## Acknowledgements
-The FNO implementation in `fourier-neural-mappings` is adapted from the [original implementation](https://github.com/neuraloperator/neuraloperator/tree/master) by Zongyi Li and Nikola Kovachki. The data generation code for the advection-diffusion example was provided by Zachary Morrow. The `matplotlib` formatting used to produce figures is adapted from the [PyApprox package](https://github.com/sandialabs/pyapprox) by John Jakeman.
+The FNO implementation in `fourier-neural-mappings` is adapted from the [original implementation](https://github.com/neuraloperator/neuraloperator/tree/master) by Nikola Kovachki and Zongyi Li. The data generation code for the advection-diffusion example was provided by Zachary Morrow. The `matplotlib` formatting used to produce figures is adapted from the [PyApprox package](https://github.com/sandialabs/pyapprox) by John Jakeman.
 
 ## References
 The main reference that explains the Fourier Neural Mappings framework is the paper ``An operator learning perspective on parameter-to-observable maps'' by Daniel Zhengyu Huang, Nicholas H. Nelsen, and Margaret Trautner. Other relevant references are now listed:
@@ -54,6 +54,6 @@ If you use `fourier-neural-mappings` in an academic paper, please cite the main 
   title={An operator learning perspective on parameter-to-observable maps},
   author={Huang, Daniel Zhengyu and Nelsen, Nicholas H and Trautner, Margaret},
   journal={arXiv preprint arXiv:2402.XXXX},
-  year={2014}
+  year={2024}
 }
 ```
