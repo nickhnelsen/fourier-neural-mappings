@@ -25,7 +25,7 @@ and deactivate with
 conda deactivate
 ```
 
-The individual examples may require additional packages to generate and process the data, train the models, etc. Please refer to the README instructions within each directory, if available.
+The individual examples (advection-diffusion, airfoil, and homogenization) may require additional packages to generate and process the data, train the models, etc. Please refer to the README instructions within each directory, if available.
 
 ## Data (TBD!!!!)
 The data may be downloaded at https://data.caltech.edu/records/XXXXX, which contain 3 `*.zip` files:
@@ -36,7 +36,7 @@ The data may be downloaded at https://data.caltech.edu/records/XXXXX, which cont
 The data are stored as PyTorch `*.pt` files, `*.npy` arrays, or pickle `*.pkl` files.
 
 ## References
-The main reference that explains the Fourier Neural Mappings framework is the paper ``An operator learning perspective on parameter-to-observable maps'' by Daniel Zhengyu Huang, Nicholas H. Nelsen, and Margaret Trautner. Other relevant references are now listed:
+The main reference that explains the Fourier Neural Mappings framework is the paper ``[An operator learning perspective on parameter-to-observable maps](https://arxiv.org/abs/2402.06031)'' by Daniel Zhengyu Huang, Nicholas H. Nelsen, and Margaret Trautner. Other relevant references are now listed:
 - [Fourier Neural Operator for Parametric Partial Differential Equations](https://arxiv.org/abs/2010.08895)
 - [Fourier Neural Operator with Learned Deformations for PDEs on General Geometries](https://arxiv.org/abs/2207.05209)
 - [Learning Homogenization for Elliptic Operators](https://arxiv.org/abs/2306.12006)
@@ -47,7 +47,7 @@ If you use `fourier-neural-mappings` in an academic paper, please cite the main 
 @article{huang2024fnm,
   title={An operator learning perspective on parameter-to-observable maps},
   author={Huang, Daniel Zhengyu and Nelsen, Nicholas H and Trautner, Margaret},
-  journal={arXiv preprint arXiv:2402.XXXX},
+  journal={arXiv preprint arXiv:2402.06031},
   year={2024}
 }
 ```
