@@ -25,18 +25,22 @@ and deactivate with
 conda deactivate
 ```
 
-The individual examples (advection-diffusion, airfoil, and homogenization) may require additional packages to generate and process the data, train the models, etc. Please refer to the README instructions within each directory, if available.
+The advection-diffusion example requires additional packages to generate and process the data; please refer to the README instructions within that directory for more details.
 
-## Data (TBD!!!!)
-The data may be downloaded at https://data.caltech.edu/records/XXXXX, which contain 3 `*.zip` files:
+## Data
+The data may be downloaded at [![DOI](https://data.caltech.edu/badge/DOI/10.22002/r5ga1-55d06.svg)](https://doi.org/10.22002/r5ga1-55d06), which contains three `*.zip` files:
 1. advection_diffusion: train and test sets for KLE dimension 2, 20, 1000. 
 2. airfoil: deformation map (X,Y) coordinates, pressure field, and control nodes.
-3. materials: V2V, F2V, V2F, and F2F formats.
+3. homogenization: V2V, F2V, V2F, and F2F formats.
 
 The data are stored as PyTorch `*.pt` files, `*.npy` arrays, or pickle `*.pkl` files.
 
+```
+Huang, D. Z., Nelsen, N. H., & Trautner, M. (2024). An operator learning perspective on parameter-to-observable maps [Data set]. CaltechDATA. https://doi.org/10.22002/r5ga1-55d06. Feb. 12, 2024.
+```
+
 ## References
-The main reference that explains the Fourier Neural Mappings framework is the paper ``[An operator learning perspective on parameter-to-observable maps](https://arxiv.org/abs/2402.06031)'' by Daniel Zhengyu Huang, Nicholas H. Nelsen, and Margaret Trautner. Other relevant references are now listed:
+The main reference that explains the Fourier Neural Mappings framework is the paper ``[An operator learning perspective on parameter-to-observable maps](https://arxiv.org/abs/2402.06031)'' by Daniel Zhengyu Huang, Nicholas H. Nelsen, and Margaret Trautner. Other relevant references include:
 - [Fourier Neural Operator for Parametric Partial Differential Equations](https://arxiv.org/abs/2010.08895)
 - [Fourier Neural Operator with Learned Deformations for PDEs on General Geometries](https://arxiv.org/abs/2207.05209)
 - [Learning Homogenization for Elliptic Operators](https://arxiv.org/abs/2306.12006)
