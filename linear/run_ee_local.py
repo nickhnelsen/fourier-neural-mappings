@@ -8,7 +8,7 @@ from util import plt
 
 plt.close("all")
 
-fsz=16
+fsz = 16
 plt.rcParams['figure.figsize'] = [6.0, 4.0]     # [6.0, 4.0]
 plt.rcParams['figure.dpi'] = 250
 plt.rcParams['savefig.dpi'] = 250
@@ -23,10 +23,6 @@ msz = 8
 handlelength = 2.75     # 2.75
 borderpad = 0.25     # 0.15
 
-
-PI_SQRD = np.pi**2
-device = torch.device('cuda')
-torch.set_printoptions(precision=12)
 
 # TODO: edit path to /results/r=1/2, etc
 def make_save_path(test_num, pth = "/L2_"):
@@ -43,13 +39,19 @@ def normBsq(seq, eig):
     return torch.sum(eig*(seq**2))
 
 
+# Defaults
+PI_SQRD = np.pi**2
+device = torch.device('cuda')
+torch.set_printoptions(precision=12)
+
+
 # User input
 FLOAT64_FLAG = True
 batch_data = 256 # TODO: batch
-batch_wave = 10
+batch_wave = 256
 M = 2 # number of random repetitions of the experiment
 J = 2**11 # number of modes
-all_N = 2**torch.arange(4, 14 + 1)
+all_N = 2**np.arange(4, 14 + 1 - 3)
 nhn_comment = "debug"
 
 #Noise variance \sigma_2 = \gamma (not squared!)
@@ -67,10 +69,21 @@ if FLOAT64_FLAG:
 else:
     torch.set_default_dtype(torch.float32)
     
-# TODO: QoI
-r = -1.5 # -1.5, -0.5, 0.5
+# TODO: QoI as command line arg
+qoi_id = 2
 x0 = np.sqrt(2)/2
-qoi = np.sqrt(2)*np.pi*wavenumbers*torch.cos(np.pi*wavenumbers*x0)
+if qoi_id == 0:
+    r = -1.5 # -1.5, -0.5, 0.5
+    qoi = np.sqrt(2)*np.pi*wavenumbers*torch.cos(np.pi*wavenumbers*x0)
+elif qoi_id == 1:
+    r = -0.5 # -1.5, -0.5, 0.5
+    qoi = np.sqrt(2)*torch.sin(np.pi*wavenumbers*x0)
+elif qoi_id == 2:
+    r = 0.5 # -1.5, -0.5, 0.5
+    qoi = np.sqrt(2)*(1. - (-1.)**wavenumbers) / (np.pi*wavenumbers)
+else:
+    raise ValueError('qoi_id mus be 0, 1, or 2')
+
 
 # Operator (inverse negative Laplacian in 1D)
 beta = 1.5
@@ -157,3 +170,5 @@ mean_errors = np.mean(errors, axis=0)
 print(mean_errors)
 
 plt.loglog(all_N, mean_errors, 'ko:')
+
+plt.show()
