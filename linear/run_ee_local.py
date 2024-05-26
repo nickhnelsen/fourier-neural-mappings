@@ -43,27 +43,26 @@ def normBsq(seq, eig):
 PI_SQRD = np.pi**2
 device = torch.device('cuda')
 torch.set_printoptions(precision=12)
-
+torch.manual_seed(0)
 
 # User input
 FLOAT64_FLAG = True
 batch_data = 256 # TODO: batch
 batch_wave = 256
-M = 2 # number of random repetitions of the experiment
+M = 5 # number of random repetitions of the experiment
 J = 2**11 # number of modes
 all_N = 2**np.arange(4, 14 + 1 - 3)
 nhn_comment = "debug"
 
 #Noise variance \sigma_2 = \gamma (not squared!)
-gamma = 1e-3 # TODO: or try 1e-5
+gamma = 1e-5 # TODO: or try 1e-5
 
 # Input data params
 tau_data = 15.0 
 alpha_data = 4.5 # TODO: also try 2.25 to align with Figure 2 rate plot in paper
 
 # True coordinates
-wcpu = torch.arange(1, J + 1)
-wavenumbers = wcpu.to(device)
+wavenumbers = torch.arange(1, J + 1, device=device)
 if FLOAT64_FLAG:
     torch.set_default_dtype(torch.float64)
 else:
@@ -123,40 +122,69 @@ for k in range(M): # outer Monte Carlo loop
     tM1 = default_timer()
     for j in range(nN): # inner loop over the sample size N
         N = all_N[j]
+        idx_listd = torch.arange(N)
         t1 = default_timer()
         
-        # generate data and form kernel matrix
-        X = torch.sqrt(eig_data)[:, None].cpu() * torch.randn(J,N) # cpu
+####################################
+
+# =============================================================================
+#         # generate data and form kernel matrix
+#         X = torch.sqrt(eig_data)[:, None].cpu() * torch.randn(J, N) # cpu
+#         Y = torch.zeros(N, device=device) # gpu
+#         G = torch.zeros(N, N, device=device) # gpu
+#         for idx, x in zip(torch.split(idx_list, batch_wave),
+#                           torch.split(X, batch_wave)):
+#             x = x.to(device)
+#             G += torch.einsum("jn,jm->nm", eig_prior[idx, None]*x, x)
+#             Y += torch.einsum("jn,j->n", x, f_true[idx])
+#         Y += gamma * torch.randn(N, device=device)
+# =============================================================================
+
+        # generate data 
+        X = torch.sqrt(eig_data)[:, None].cpu() * torch.randn(J, N) # cpu
         Y = torch.zeros(N, device=device) # gpu
-        G = torch.zeros(N, N, device=device) # gpu
-        for idx, x in zip(torch.split(idx_list, batch_wave),
-                        torch.split(X, batch_wave)):
-            x = x.to(device)
-            lam_x = eig_prior[idx,None]*x
-            G += torch.einsum("jn,jm->nm", lam_x, x)
-            Y += torch.einsum("jn,j->n", x, f_true[idx])
+        for idx_N, x in zip(torch.split(idx_listd, batch_data),
+                            torch.split(X, batch_data, dim=-1)):
+            for idx_J, xb in zip(torch.split(idx_list, batch_wave),
+                                 torch.split(x, batch_wave)):
+                xb = xb.to(device)
+                Y[idx_N] += torch.einsum("jn,j->n", xb, f_true[idx_J])
         Y += gamma * torch.randn(N, device=device)
+
+        # form kernel matrix
+        G = torch.zeros(N, N, device=device) # gpu
+        for idx_N, x in zip(torch.split(idx_listd, batch_data),
+                            torch.split(X, batch_data, dim=-1)):
+            for idx_NN, xx in zip(torch.split(idx_listd, batch_data),
+                                torch.split(X, batch_data, dim=-1)):
+                for idx_J, xb, xxb in zip(torch.split(idx_list, batch_wave),
+                                     torch.split(x, batch_wave),
+                                     torch.split(xx, batch_wave)):
+                    xb = xb.to(device)
+                    xxb = xxb.to(device)
+                    G[idx_N[:, None],idx_NN[None, :]] += torch.einsum("jn,jm->nm", eig_prior[idx_J, None]*xb, xxb)
         
+####################################
         # linear solve
-        G += (gamma**2)*torch.eye(N, device=device) # TODO: this uses too much memory
+        G.diagonal().copy_(G.diagonal().add_(gamma**2)) # in-place operation to save GPU memory
         G = torch.linalg.solve(G, Y)
 
-        # estimator
-        f_hat = torch.zeros(J, device=device)
+        # TODO: double batch; estimator
+        YY = torch.zeros(J, device=device)
         for idx, x in zip(torch.split(idx_list, batch_wave),
                         torch.split(X, batch_wave)):
             x = x.to(device)
-            f_hat[idx] = eig_prior[idx] * torch.einsum("jn,n->j", x, G)
+            YY[idx] = eig_prior[idx] * torch.einsum("jn,n->j", x, G)
         
-        f_hat -= f_true
-        errors[k,j] = (normBsq(f_hat, eig_data)/gt_Bsq).item()
+        YY -= f_true
+        errors[k,j] = (normBsq(YY, eig_data)/gt_Bsq).item()
         
         t2 = default_timer()
 
         print(k + 1, j + 1, t2 - t1)
 
-    # Save to file every iteration in Monte Carlo run M
-    # np.save(save_path + "boch_store.npy", errors.cpu().numpy())
+    # Save to file after every Monte Carlo iteration
+    # np.save(save_path + "boch_store.npy", errors.cpu().numpy()) # TODO: save
     tM2 = default_timer()
     print("Time elapsed for this Monte Carlo run (sec):", tM2 - tM1)
     print("Time elapsed since start (min):", (tM2 - ts)/60)
