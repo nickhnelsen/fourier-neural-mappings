@@ -43,12 +43,12 @@ def normBsq(seq, eig):
 PI_SQRD = np.pi**2
 device = torch.device('cuda')
 torch.set_printoptions(precision=12)
-torch.manual_seed(0)
+torch.manual_seed(0) # TODO: temp to debug
 
 # User input
 FLOAT64_FLAG = True
-batch_data = 256 # TODO: batch
-batch_wave = 256
+batch_data = 256
+batch_wave = 128
 M = 5 # number of random repetitions of the experiment
 J = 2**11 # number of modes
 all_N = 2**np.arange(4, 14 + 1 - 3)
@@ -71,13 +71,13 @@ else:
 # TODO: QoI as command line arg
 qoi_id = 2
 x0 = np.sqrt(2)/2
-if qoi_id == 0:
+if qoi_id == 0: # point evaluation of first derivative
     r = -1.5 # -1.5, -0.5, 0.5
     qoi = np.sqrt(2)*np.pi*wavenumbers*torch.cos(np.pi*wavenumbers*x0)
-elif qoi_id == 1:
+elif qoi_id == 1: # point evaluation
     r = -0.5 # -1.5, -0.5, 0.5
     qoi = np.sqrt(2)*torch.sin(np.pi*wavenumbers*x0)
-elif qoi_id == 2:
+elif qoi_id == 2: # mean
     r = 0.5 # -1.5, -0.5, 0.5
     qoi = np.sqrt(2)*(1. - (-1.)**wavenumbers) / (np.pi*wavenumbers)
 else:
@@ -110,6 +110,9 @@ hyp_array = np.array((FLOAT64_FLAG, batch_wave, M, J, all_N[-1].item(), nhn_comm
 # np.save(save_path + 'n_list.npy', all_N)
 # np.save(save_path + "hyperparameters.npy", hyp_array)
 
+# TODO: compute theoretical convergence rate here
+# rate = 0
+
 # Setup
 nN = all_N.shape[0]
 gt_Bsq = normBsq(f_true, eig_data)
@@ -124,21 +127,6 @@ for k in range(M): # outer Monte Carlo loop
         N = all_N[j]
         idx_listd = torch.arange(N)
         t1 = default_timer()
-        
-####################################
-
-# =============================================================================
-#         # generate data and form kernel matrix
-#         X = torch.sqrt(eig_data)[:, None].cpu() * torch.randn(J, N) # cpu
-#         Y = torch.zeros(N, device=device) # gpu
-#         G = torch.zeros(N, N, device=device) # gpu
-#         for idx, x in zip(torch.split(idx_list, batch_wave),
-#                           torch.split(X, batch_wave)):
-#             x = x.to(device)
-#             G += torch.einsum("jn,jm->nm", eig_prior[idx, None]*x, x)
-#             Y += torch.einsum("jn,j->n", x, f_true[idx])
-#         Y += gamma * torch.randn(N, device=device)
-# =============================================================================
 
         # generate data 
         X = torch.sqrt(eig_data)[:, None].cpu() * torch.randn(J, N) # cpu
@@ -162,25 +150,26 @@ for k in range(M): # outer Monte Carlo loop
                                      torch.split(xx, batch_wave)):
                     xb = xb.to(device)
                     xxb = xxb.to(device)
-                    G[idx_N[:, None],idx_NN[None, :]] += torch.einsum("jn,jm->nm", eig_prior[idx_J, None]*xb, xxb)
+                    G[idx_N[:, None], idx_NN[None, :]] += torch.einsum("jn,jm->nm", eig_prior[idx_J, None]*xb, xxb)
         
-####################################
         # linear solve
         G.diagonal().copy_(G.diagonal().add_(gamma**2)) # in-place operation to save GPU memory
         G = torch.linalg.solve(G, Y)
 
-        # TODO: double batch; estimator
-        YY = torch.zeros(J, device=device)
-        for idx, x in zip(torch.split(idx_list, batch_wave),
-                        torch.split(X, batch_wave)):
-            x = x.to(device)
-            YY[idx] = eig_prior[idx] * torch.einsum("jn,n->j", x, G)
+        # estimator
+        Y = torch.zeros(J, device=device)
+        for idx_J, x in zip(torch.split(idx_list, batch_wave),
+                            torch.split(X, batch_wave)):
+            for idx_N, xb in zip(torch.split(idx_listd, batch_data),
+                                 torch.split(x, batch_data, dim=-1)):
+                xb = xb.to(device)
+                Y[idx_J] += eig_prior[idx_J] * torch.einsum("jn,n->j", xb, G[idx_N])
         
-        YY -= f_true
-        errors[k,j] = (normBsq(YY, eig_data)/gt_Bsq).item()
+        # test error
+        Y -= f_true
+        errors[k,j] = (normBsq(Y, eig_data)/gt_Bsq).item()
         
         t2 = default_timer()
-
         print(k + 1, j + 1, t2 - t1)
 
     # Save to file after every Monte Carlo iteration
@@ -192,11 +181,10 @@ for k in range(M): # outer Monte Carlo loop
 tf = default_timer()
 print("Total time elapsed for experiment:", tf - ts)
 
-errors = errors.cpu().numpy()
 
+# TODO: temp visualize error and results
+errors = errors.cpu().numpy()
 mean_errors = np.mean(errors, axis=0)
 print(mean_errors)
-
 plt.loglog(all_N, mean_errors, 'ko:')
-
 plt.show()
