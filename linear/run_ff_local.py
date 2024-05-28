@@ -55,7 +55,7 @@ all_N = 2**np.arange(4, 14 + 1 - 0)
 nhn_comment = "debug FF"
 
 #Noise variance \sigma_2 = \gamma (not squared!)
-gamma = 1e-5 # TODO: or try 1e-5
+gamma = 1e-3 # TODO: or try 1e-5
 
 # Input data params
 tau_data = 15.0 
@@ -69,7 +69,7 @@ else:
     torch.set_default_dtype(torch.float32)
     
 # TODO: QoI as command line arg
-qoi_id = 2
+qoi_id = 0
 x0 = np.sqrt(2)/2
 if qoi_id == 0: # point evaluation of first derivative
     r = -1.5 # -1.5, -0.5, 0.5
@@ -91,8 +91,8 @@ ell_true = (wavenumbers**(-2.)) / PI_SQRD
 # Functional
 f_true = ell_true * qoi
 
-# Prior
-alpha_prior = beta + r + 1
+# Prior for FF
+alpha_prior = beta + 1/2
 tau_prior = 2.
 sig_prior = tau_prior**(alpha_prior - 1/2)
 eig_prior = sig_prior**2*(PI_SQRD*(wavenumbers**2) + tau_prior**2)**(-alpha_prior) 
