@@ -47,12 +47,12 @@ torch.manual_seed(0) # TODO: temp to debug
 
 # User input
 FLOAT64_FLAG = True
-batch_data = 1024
+batch_data = 1024//2
 batch_wave = 1024
-M = 1 # number of random repetitions of the experiment
+M = 50 # number of random repetitions of the experiment
 J = 2**15 # number of modes
-all_N = 2**np.arange(4, 14 + 1 - 0)
-nhn_comment = "debug"
+all_N = 2**np.arange(4, 14 + 1 - 3)
+nhn_comment = "debug FF"
 
 #Noise variance \sigma_2 = \gamma (not squared!)
 gamma = 1e-3 # TODO: or try 1e-5
@@ -69,7 +69,7 @@ else:
     torch.set_default_dtype(torch.float32)
     
 # TODO: QoI as command line arg
-qoi_id = 0
+qoi_id = 1
 x0 = np.sqrt(2)/2
 if qoi_id == 0: # point evaluation of first derivative
     r = -1.5 # -1.5, -0.5, 0.5
@@ -110,13 +110,16 @@ hyp_array = np.array((FLOAT64_FLAG, batch_wave, M, J, all_N[-1].item(), nhn_comm
 # np.save(save_path + 'n_list.npy', all_N)
 # np.save(save_path + "hyperparameters.npy", hyp_array)
 
-# TODO: compute theoretical convergence rate here
-rate = 1. - (1. / (2 + 2*alpha_data + 2*beta + 2*r))
+# TODO: compute theoretical FF convergence rate here
+rate = 1. if r>=0 else (1. - (-2*r / (1 + 2*alpha_data + 2*beta)))
 
 # Setup
 nN = all_N.shape[0]
 gt_Bsq = normBsq(f_true, eig_data)
 errors = torch.zeros((M, nN))
+
+# FF
+f_approx = torch.zeros(J, device=device)
 
 # Loop
 idx_list = torch.arange(J)
@@ -127,47 +130,23 @@ for k in range(M): # outer Monte Carlo loop
         N = all_N[j]
         idx_listd = torch.arange(N)
         t1 = default_timer()
-
-        # generate data 
-        X = torch.sqrt(eig_data)[:, None].cpu() * torch.randn(J, N) # cpu
-        Y = torch.zeros(N, device=device) # gpu
-        for idx_N, x in zip(torch.split(idx_listd, batch_data),
-                            torch.split(X, batch_data, dim=-1)):
-            for idx_J, xb in zip(torch.split(idx_list, batch_wave),
-                                 torch.split(x, batch_wave)):
-                xb = xb.to(device)
-                Y[idx_N] += torch.einsum("jn,j->n", xb, f_true[idx_J])
-        Y += gamma * torch.randn(N, device=device)
-
-        # form kernel matrix
-        G = torch.zeros(N, N, device=device) # gpu
-        for idx_N, x in zip(torch.split(idx_listd, batch_data),
-                            torch.split(X, batch_data, dim=-1)):
-            for idx_NN, xx in zip(torch.split(idx_listd, batch_data),
-                                torch.split(X, batch_data, dim=-1)):
-                for idx_J, xb, xxb in zip(torch.split(idx_list, batch_wave),
-                                     torch.split(x, batch_wave),
-                                     torch.split(xx, batch_wave)):
-                    xb = xb.to(device)
-                    xxb = xxb.to(device)
-                    G[idx_N[:, None], idx_NN[None, :]] += torch.einsum("jn,jm->nm", eig_prior[idx_J, None]*xb, xxb)
         
-        # linear solve
-        G.diagonal().copy_(G.diagonal().add_(gamma**2)) # in-place operation to save GPU memory
-        G = torch.linalg.solve(G, Y)
-
-        # estimator
-        Y = torch.zeros(J, device=device)
-        for idx_J, x in zip(torch.split(idx_list, batch_wave),
-                            torch.split(X, batch_wave)):
-            for idx_N, xb in zip(torch.split(idx_listd, batch_data),
-                                 torch.split(x, batch_data, dim=-1)):
-                xb = xb.to(device)
-                Y[idx_J] += eig_prior[idx_J] * torch.einsum("jn,n->j", xb, G[idx_N])
+        # generate data and form diagonal estimator
+        f_approx.zero_()
+        for idx_J in torch.split(idx_list, batch_wave):
+            yx = torch.zeros(len(idx_J), device=device)
+            xx = torch.zeros(len(idx_J), device=device)
+            for idx_N in torch.split(idx_listd, batch_data):
+                x = torch.sqrt(eig_data)[idx_J, None] * torch.randn(len(idx_J), len(idx_N), device=device)
+                y = ell_true[idx_J, None]*x
+                y += gamma * torch.randn(len(idx_J), len(idx_N), device=device)
+                yx += torch.sum(y*x, dim=-1)
+                xx += torch.sum(x**2, dim=-1)
+            f_approx[idx_J] = qoi[idx_J] * yx / (xx + (gamma**2 / eig_prior[idx_J])) 
         
         # test error
-        Y -= f_true
-        errors[k,j] = (normBsq(Y, eig_data)/gt_Bsq).item()
+        f_approx -= f_true
+        errors[k,j] = (normBsq(f_approx, eig_data)/gt_Bsq).item()
         
         t2 = default_timer()
         print(k + 1, j + 1, t2 - t1)
@@ -189,7 +168,7 @@ print('Convergence rate is', rate)
 print(mean_errors)
 plt.figure(0)
 plt.loglog(all_N, mean_errors, 'ko:')
-plt.loglog(all_N, 3e-3*all_N**(-rate), 'r--')
-plt.loglog(all_N, 3e-3*all_N**(-1.), 'b-')
+plt.loglog(all_N, 3e-2*all_N**(-rate), 'r--')
+plt.loglog(all_N, 3e-2*all_N**(-1.), 'b-')
 
 plt.show()
