@@ -69,7 +69,7 @@ else:
     torch.set_default_dtype(torch.float32)
     
 # TODO: QoI as command line arg
-qoi_id = 0
+qoi_id = 2
 x0 = np.sqrt(2)/2
 if qoi_id == 0: # point evaluation of first derivative
     r = -1.5 # -1.5, -0.5, 0.5

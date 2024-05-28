@@ -49,17 +49,17 @@ torch.manual_seed(0) # TODO: temp to debug
 FLOAT64_FLAG = True
 batch_data = 1024//2
 batch_wave = 1024
-M = 50 # number of random repetitions of the experiment
+M = 5 # number of random repetitions of the experiment
 J = 2**15 # number of modes
-all_N = 2**np.arange(4, 14 + 1 - 3)
+all_N = 2**np.arange(4, 14 + 1 - 0)
 nhn_comment = "debug FF"
 
 #Noise variance \sigma_2 = \gamma (not squared!)
-gamma = 1e-3 # TODO: or try 1e-5
+gamma = 1e-5 # TODO: or try 1e-5
 
 # Input data params
 tau_data = 15.0 
-alpha_data = 2.00 # TODO: also try 2.25 to align with Figure 2 rate plot in paper; 4.5
+alpha_data = 4.5 # TODO: also try 2.25 to align with Figure 2 rate plot in paper; 4.5
 
 # True coordinates
 wavenumbers = torch.arange(1, J + 1, device=device)
@@ -69,7 +69,7 @@ else:
     torch.set_default_dtype(torch.float32)
     
 # TODO: QoI as command line arg
-qoi_id = 1
+qoi_id = 2
 x0 = np.sqrt(2)/2
 if qoi_id == 0: # point evaluation of first derivative
     r = -1.5 # -1.5, -0.5, 0.5
@@ -137,7 +137,7 @@ for k in range(M): # outer Monte Carlo loop
             yx = torch.zeros(len(idx_J), device=device)
             xx = torch.zeros(len(idx_J), device=device)
             for idx_N in torch.split(idx_listd, batch_data):
-                x = torch.sqrt(eig_data)[idx_J, None] * torch.randn(len(idx_J), len(idx_N), device=device)
+                x = torch.sqrt(eig_data[idx_J, None]) * torch.randn(len(idx_J), len(idx_N), device=device)
                 y = ell_true[idx_J, None]*x
                 y += gamma * torch.randn(len(idx_J), len(idx_N), device=device)
                 yx += torch.sum(y*x, dim=-1)
