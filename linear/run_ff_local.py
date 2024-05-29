@@ -38,6 +38,7 @@ torch.set_printoptions(precision=12)
 # User input
 est_type = "ff"
 FLOAT64_FLAG = True
+FLAG_WIDE = False
 batch_data = 1024
 batch_wave = 1024
 M = 100 # number of random repetitions of the experiment, M=100 or M=250
@@ -46,11 +47,11 @@ all_N = 2**np.arange(4, 14 + 1)
 nhn_comment = "debug FF"
 
 # Noise standard deviation \gamma (not squared!)
-gamma = 1e-5 # 1e-3 (0) or try 1e-5 (1)
+gamma = 1e-3 # 1e-3 (0) or try 1e-5 (1)
 
 # Input data params
 tau_data = 15.0 
-alpha_data = 4.5 # 4.5 (2), 2. (1), 0.75 (0)
+alpha_data = 0.75 # 4.5 (2), 2. (1), 0.75 (0)
 
 # True coordinates
 wavenumbers = torch.arange(1, J + 1, device=device)
@@ -60,7 +61,7 @@ else:
     torch.set_default_dtype(torch.float32)
     
 # QoIs
-qoi_id = 0
+qoi_id = 2
 x0 = np.sqrt(2)/2
 if qoi_id == 0: # point evaluation of first derivative
     r = -1.5 # -1.5, -0.5, 0.5
@@ -161,10 +162,17 @@ errors = errors.cpu().numpy()
 mean_errors = np.mean(errors, axis=0)
 print('Convergence rate is', rate)
 print(mean_errors)
+if FLAG_WIDE:
+    plt.rcParams['figure.figsize'] = [6.0, 4.0]     # [6.0, 4.0]
+else:
+    plt.rcParams['figure.figsize'] = [6.0, 6.0]     # [6.0, 4.0]
 plt.figure(0)
-plt.loglog(all_N, mean_errors, 'o:', label=r'Simulated')
+plt.loglog(all_N, mean_errors, 'o:', label=r'Simulated', )
 plt.loglog(all_N, mean_errors[0] * all_N[0]**rate * all_N**(-rate), '--', label=r'Theory')
 plt.loglog(all_N, mean_errors[0] * all_N[0]**1. * all_N**(-1.), 'k-', label=r'$N^{-1}$')
+plt.loglog(all_N, mean_errors[0] * all_N[0]**0.5 * all_N**(-0.5), 'k-.', label=r'$N^{-1/2}$')
+plt.xlabel(r'$N$')
 plt.legend(framealpha=1, loc='best', borderpad=borderpad,handlelength=handlelength).set_draggable(True)
+plt.tight_layout()
 plt.savefig(save_path + 'rates_temp' + obj_suffix[:-4] + '.pdf', format='pdf')
 plt.show()
