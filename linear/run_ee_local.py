@@ -1,8 +1,6 @@
 import torch
 import numpy as np
-from datetime import datetime
 from timeit import default_timer
-
 import os, sys; sys.path.append(os.path.join('..'))
 from util import plt
 
@@ -23,12 +21,6 @@ msz = 8
 handlelength = 2.75     # 2.75
 borderpad = 0.25     # 0.15
 
-
-# TODO: edit path to /results/r=1/2, etc
-def make_save_path(test_num, pth = "/L2_"):
-    save_path = "experiments/nondiag/" + datetime.today().strftime('%Y-%m-%d') + pth + str(test_num) +"/"
-    return save_path
-
 def normBsq(seq, eig):
     """
     L_{\nu'}^2(H;H) SQUARED Bochner norm weighted by the test data measure \nu'
@@ -38,28 +30,28 @@ def normBsq(seq, eig):
     """
     return torch.sum(eig*(seq**2))
 
-
 # Defaults
 PI_SQRD = np.pi**2
 device = torch.device('cuda')
 torch.set_printoptions(precision=12)
-torch.manual_seed(0) # TODO: temp to debug
 
 # User input
+est_type = "ee"
 FLOAT64_FLAG = True
+FLAG_WIDE = False
 batch_data = 1024
 batch_wave = 1024
-M = 1 # number of random repetitions of the experiment
-J = 2**15 # number of modes
-all_N = 2**np.arange(4, 14 + 1 - 0)
-nhn_comment = "debug"
+M = 50 # number of random repetitions of the experiment, M=100 or M=250
+J = 2**12 # number of modes, 2**12 (0) or 2**15 (1)
+all_N = 2**np.arange(4 + 4, 14 + 1 - 2)
+nhn_comment = "debug EE"
 
-#Noise variance \sigma_2 = \gamma (not squared!)
-gamma = 1e-3 # TODO: or try 1e-5
+# Noise standard deviation \gamma (not squared!)
+gamma = 1e-3 # 1e-3 (0) or try 1e-5 (1)
 
 # Input data params
 tau_data = 15.0 
-alpha_data = 2.00 # TODO: also try 2.25 to align with Figure 2 rate plot in paper; 4.5
+alpha_data = 2. # 4.5 (2), 2. (1), 0.75 (0)
 
 # True coordinates
 wavenumbers = torch.arange(1, J + 1, device=device)
@@ -68,8 +60,8 @@ if FLOAT64_FLAG:
 else:
     torch.set_default_dtype(torch.float32)
     
-# TODO: QoI as command line arg
-qoi_id = 2
+# QoIs
+qoi_id = 0
 x0 = np.sqrt(2)/2
 if qoi_id == 0: # point evaluation of first derivative
     r = -1.5 # -1.5, -0.5, 0.5
@@ -81,8 +73,7 @@ elif qoi_id == 2: # mean
     r = 0.5 # -1.5, -0.5, 0.5
     qoi = np.sqrt(2)*(1. - (-1.)**wavenumbers) / (np.pi*wavenumbers)
 else:
-    raise ValueError('qoi_id mus be 0, 1, or 2')
-
+    raise ValueError('qoi_id must be 0, 1, or 2')
 
 # Operator (inverse negative Laplacian in 1D)
 beta = 1.5
@@ -91,7 +82,7 @@ ell_true = (wavenumbers**(-2.)) / PI_SQRD
 # Functional
 f_true = ell_true * qoi
 
-# Prior
+# Prior for EE
 alpha_prior = beta + r + 1
 tau_prior = 2.
 sig_prior = tau_prior**(alpha_prior - 1/2)
@@ -99,24 +90,29 @@ eig_prior = sig_prior**2*(PI_SQRD*(wavenumbers**2) + tau_prior**2)**(-alpha_prio
 
 # Training measure
 sig_data = tau_data**(alpha_data - 1/2)
-eig_data = sig_data**2*(PI_SQRD*(wavenumbers**2) + tau_data**2)**(-alpha_data)       # train error covariance eigenvalues
+eig_data = sig_data**2*(PI_SQRD*(wavenumbers**2) + tau_data**2)**(-alpha_data)
 
-# TODO: File I/O
-# save_path = make_save_path(TEST_NUM)
-# os.makedirs(save_path, exist_ok=True)
-hyp_array = np.array((FLOAT64_FLAG, batch_wave, M, J, all_N[-1].item(), nhn_comment, gamma, tau_data, alpha_data)) # array of hyperparameters
+# File IO
+if alpha_data == 0.75:
+    al_id = 0
+elif alpha_data == 2.:
+    al_id = 1
+elif alpha_data == 4.5:
+    al_id = 2
+obj_suffix = '_qoi' + str(qoi_id) + '.npy'
+path_suffix = 'M' + str(M) + '_J' + str(int(J==2**15)) + '_gam' + str(int(gamma==1e-5)) + '_al' + str(al_id) + '/'
+save_path = './results/' + est_type + '/' + path_suffix
+os.makedirs(save_path, exist_ok=True)
 
-# TODO: Write n_list and hyperparameters to file
-# np.save(save_path + 'n_list.npy', all_N)
-# np.save(save_path + "hyperparameters.npy", hyp_array)
-
-# TODO: compute theoretical convergence rate here
-rate = 1. - (1. / (2 + 2*alpha_data + 2*beta + 2*r))
+# Write n_list to file
+np.save(save_path + 'n_list.npy', all_N)
 
 # Setup
 nN = all_N.shape[0]
 gt_Bsq = normBsq(f_true, eig_data)
 errors = torch.zeros((M, nN))
+if est_type == "ff":
+    f_approx = torch.zeros(J, device=device)
 
 # Loop
 idx_list = torch.arange(J)
@@ -127,7 +123,7 @@ for k in range(M): # outer Monte Carlo loop
         N = all_N[j]
         idx_listd = torch.arange(N)
         t1 = default_timer()
-
+        
         # generate data 
         X = torch.sqrt(eig_data)[:, None].cpu() * torch.randn(J, N) # cpu
         Y = torch.zeros(N, device=device) # gpu
@@ -173,7 +169,7 @@ for k in range(M): # outer Monte Carlo loop
         print(k + 1, j + 1, t2 - t1)
 
     # Save to file after every Monte Carlo iteration
-    # np.save(save_path + "boch_store.npy", errors.cpu().numpy()) # TODO: save
+    np.save(save_path + "errors" + obj_suffix, errors.cpu().numpy())
     tM2 = default_timer()
     print("Time elapsed for this Monte Carlo run (sec):", tM2 - tM1)
     print("Time elapsed since start (min):", (tM2 - ts)/60)
@@ -182,14 +178,25 @@ tf = default_timer()
 print("Total time elapsed for experiment:", tf - ts)
 
 
-# TODO: temp visualize error and results
+# Compute theoretical EE convergence rate here
+rate = 1. - (1. / (2 + 2*alpha_data + 2*beta + 2*r))
+
+# Visualize error and results
 errors = errors.cpu().numpy()
 mean_errors = np.mean(errors, axis=0)
 print('Convergence rate is', rate)
 print(mean_errors)
+if FLAG_WIDE:
+    plt.rcParams['figure.figsize'] = [6.0, 4.0]     # [6.0, 4.0]
+else:
+    plt.rcParams['figure.figsize'] = [6.0, 6.0]     # [6.0, 4.0]
 plt.figure(0)
-plt.loglog(all_N, mean_errors, 'ko:')
-plt.loglog(all_N, 3e-3*all_N**(-rate), 'r--')
-plt.loglog(all_N, 3e-3*all_N**(-1.), 'b-')
-
+plt.loglog(all_N, mean_errors, 'o:', label=r'Simulated', )
+plt.loglog(all_N, mean_errors[0] * all_N[0]**rate * all_N**(-rate), '--', label=r'Theory')
+plt.loglog(all_N, mean_errors[0] * all_N[0]**1. * all_N**(-1.), 'k-', label=r'$N^{-1}$')
+plt.loglog(all_N, mean_errors[0] * all_N[0]**0.5 * all_N**(-0.5), 'k-.', label=r'$N^{-1/2}$')
+plt.xlabel(r'$N$')
+plt.legend(framealpha=1, loc='best', borderpad=borderpad,handlelength=handlelength).set_draggable(True)
+plt.tight_layout()
+plt.savefig(save_path + 'rates_temp' + obj_suffix[:-4] + '.pdf', format='pdf')
 plt.show()
