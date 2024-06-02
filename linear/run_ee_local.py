@@ -32,7 +32,8 @@ def normBsq(seq, eig):
 
 # Defaults
 PI_SQRD = np.pi**2
-device = torch.device('cuda')
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print("Device is", device)
 torch.set_printoptions(precision=12)
 
 # User input

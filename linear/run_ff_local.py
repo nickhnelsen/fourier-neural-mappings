@@ -32,7 +32,8 @@ def normBsq(seq, eig):
 
 # Defaults
 PI_SQRD = np.pi**2
-device = torch.device('cuda')
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print("Device is", device)
 torch.set_printoptions(precision=12)
 
 # User input
@@ -61,7 +62,7 @@ else:
     torch.set_default_dtype(torch.float32)
     
 # QoIs
-qoi_id = 2
+qoi_id = 0
 x0 = np.sqrt(2)/2
 if qoi_id == 0: # point evaluation of first derivative
     r = -1.5 # -1.5, -0.5, 0.5
