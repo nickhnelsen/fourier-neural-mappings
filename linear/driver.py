@@ -100,7 +100,7 @@ eig_data = sig_data**2*(PI_SQRD*(wavenumbers**2) + tau_data**2)**(-alpha_data)
 
 # File IO
 obj_suffix = '_qoi' + str(qoi_id) + '.npy'
-path_suffix = 'M' + str(M) + '_logJ' + str(logJ) + '_gam' + str(int(gamma==1e-5)) + '_al' + str(alpha_id) + '/'
+path_suffix = 'M' + str(M) + '_logJ' + str(logJ) + '_gam' + str(gamma_id) + '_al' + str(alpha_id) + '/'
 save_path = './results/' + est_type + '/' + path_suffix
 os.makedirs(save_path, exist_ok=True)
 
