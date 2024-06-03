@@ -3,7 +3,7 @@
 etype=ff
 bd=1024
 bw=1024
-M=500
+M=1000
 logJ=12
 idxg=0
 declare -a alphas=("0" "1" "2")
