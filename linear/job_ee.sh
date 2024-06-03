@@ -3,7 +3,7 @@
 etype=ee
 bd=1024
 bw=1024
-M=250
+M=1000
 logJ=12
 idxg=0
 declare -a alphas=("0" "1" "2")
@@ -21,7 +21,7 @@ for idxa in "${alphas[@]}"; do
 
         echo "submit command: $scommand"
 
-        #$scommand
+        $scommand
 
         (( COUNT++ ))
     done
