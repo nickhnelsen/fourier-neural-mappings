@@ -5,7 +5,6 @@ from util import plt
 
 plt.close("all")
 
-fsz = 16
 plt.rcParams['figure.dpi'] = 250
 plt.rcParams['savefig.dpi'] = 250
 plt.rcParams['font.size'] = 17
@@ -70,7 +69,6 @@ shift_list = [4, -8, 1]
 
 # Legend
 legs = [r"$r=-3/2$", r"$r=-1/2$", r"$r=1/2$"]
-yl = r""
 
 # Derived
 alpha_id = idxa
