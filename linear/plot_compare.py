@@ -51,7 +51,7 @@ logJ = 12
 idxg = 0
 
 # Choose individual experiment
-idxa = 2 # alpha idx
+idxa = 0 # alpha idx
 
 # Least squares shifts
 if idxa == 0:
@@ -146,6 +146,17 @@ for idxq in range(2 + 1):
     
         # Plot
         if FLAG_SCALE:
+            if eee == 0:
+                # N^-1/2 curve
+                const = -(-1./2)*np.log2(nplota[0])
+                ref = const + (-1./2)*np.log2(nplota)
+                plt.loglog(all_N, 2**ref, color='darkgray', ls= (0, (3, 1, 1, 1, 1, 1)), label=r'$N^{-1/2}$')
+                
+                # N^-1 curve
+                const = -(-1)*np.log2(nplota[0])
+                ref = const + (-1.)*np.log2(nplota)
+                plt.loglog(all_N, 2**ref, color='darkgray', ls="--", label=r'$N^{-1}$')
+            
             scalemax = (2**lineplota[...,0]).max()
             plt.loglog(all_N, 2**lineplota[...,0]/scalemax, ls='-', color='C4') # purple; also can use "m-"
             plt.loglog(all_N, mean_errors/scalemax, ls=style_list[eee], color=clist[eee], marker=marker_list[eee], markersize=msz, label=legs[eee])
@@ -161,7 +172,12 @@ for idxq in range(2 + 1):
     else:
         ax1.tick_params(labelleft=False)
     if idxq == 0:
-        plt.legend(framealpha=1, loc='best', borderpad=borderpad,handlelength=handlelength).set_draggable(True)
+        if not FLAG_SCALE:
+            plt.legend(framealpha=1, loc='best', borderpad=borderpad,handlelength=handlelength).set_draggable(True)
+        else:
+            handles, labels = plt.gca().get_legend_handles_labels()
+            order = [2,3,0,1]
+            plt.legend([handles[idx] for idx in order],[labels[idx] for idx in order],framealpha=1,loc='best', borderpad=borderpad,handlelength=handlelength).set_draggable(True)
     else:
         ax1.yaxis.label.set_visible(False)
     plt.grid()
