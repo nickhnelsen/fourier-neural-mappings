@@ -53,17 +53,17 @@ FLAG_WIDE = False
 beta = 1.5
 
 # Experiment choice
-est_type = "ff"
+est_type = "ee"
 M = 1000
-logJ = 12
+logJ = 13
 idxg = 0
 
 # Choose individual experiment
-idxa = 2 # alpha idx
+idxa = 0 # alpha idx
 idxq = 2 # QoI idx
 
 # Least squares shift
-shift = 0
+shift = -5
 
 # Derived
 alpha_id = idxa
@@ -151,4 +151,3 @@ plt.tight_layout()
 if save_plots:
     plt.savefig(save_path + 'rate' + obj_suffix[:-4] + '.pdf', format='pdf')
 plt.show()
-

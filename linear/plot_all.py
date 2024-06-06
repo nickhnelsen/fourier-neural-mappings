@@ -50,7 +50,7 @@ beta = 1.5
 # Experiment choice
 est_type = "ff"
 M = 1000
-logJ = 12
+logJ = 17
 idxg = 0
 
 # Choose individual experiment
