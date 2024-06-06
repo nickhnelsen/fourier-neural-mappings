@@ -42,7 +42,7 @@ style_list = ['-.', linestyle_tuples['dotted'], linestyle_tuples['densely dashdo
 # USER INPUT
 save_plots = True
 FLAG_WIDE = False
-FLAG_SCALE = not True # TODO: rescale lines so start at same point
+FLAG_SCALE = True
 beta = 1.5
 
 # Experiment choice
@@ -133,7 +133,7 @@ for idxq in range(2 + 1):
         lineplota = linefit[0,...] + linefit[1,...]*np.log2(nplota)[:,None]
         print("Least square slope fit is: ")
         print(-linefit[-1])
-    
+            
         # Experimental rates of convergence table
         eocBoch = np.zeros([nn-1, 1])
         for i in range(nn-1):
@@ -145,14 +145,21 @@ for idxq in range(2 + 1):
         print('\nTheoretical convergence rate is:', rate)
     
         # Plot
-        plt.loglog(all_N, 2**lineplota[...,0], ls='-', color='C4') # purple; also can use "m-"
-        plt.loglog(all_N, mean_errors, ls=style_list[eee], color=clist[eee], marker=marker_list[eee], markersize=msz, label=legs[eee])
+        if FLAG_SCALE:
+            scalemax = (2**lineplota[...,0]).max()
+            plt.loglog(all_N, 2**lineplota[...,0]/scalemax, ls='-', color='C4') # purple; also can use "m-"
+            plt.loglog(all_N, mean_errors/scalemax, ls=style_list[eee], color=clist[eee], marker=marker_list[eee], markersize=msz, label=legs[eee])
+        else:
+            plt.loglog(all_N, 2**lineplota[...,0], ls='-', color='C4') # purple; also can use "m-"
+            plt.loglog(all_N, mean_errors, ls=style_list[eee], color=clist[eee], marker=marker_list[eee], markersize=msz, label=legs[eee])
         
     # Outside of estimator loop
     plt.xlabel(r'$N$')
     ax1 = plt.gca()
     if not FLAG_SCALE:
         ax1.yaxis.set_label_text(r'Relative Squared Error')
+    else:
+        ax1.tick_params(labelleft=False)
     if idxq == 0:
         plt.legend(framealpha=1, loc='best', borderpad=borderpad,handlelength=handlelength).set_draggable(True)
     else:
@@ -161,12 +168,13 @@ for idxq in range(2 + 1):
     plt.grid(alpha=0.67) # axis='y')
     plt.xlim((all_N[0]*0.62, all_N[-1]*1.5))
     
-    if idxa == 0:
-        plt.ylim([0.75*1e-7, 7.5*1e-2])
-    elif idxa == 1:
-        plt.ylim([0.75*1e-7, 3*1e-2])
-    elif idxa == 2:
-        plt.ylim([0.9*1e-7, 1.1*1e-2])
+    if not FLAG_SCALE:
+        if idxa == 0:
+            plt.ylim([0.75*1e-7, 7.5*1e-2])
+        elif idxa == 1:
+            plt.ylim([0.75*1e-7, 3*1e-2])
+        elif idxa == 2:
+            plt.ylim([0.9*1e-7, 1.1*1e-2])
     
     plt.tight_layout()
     if save_plots:
