@@ -48,11 +48,15 @@ The main reference that explains the Fourier Neural Mappings framework is the pa
 ## Citing
 If you use `fourier-neural-mappings` in an academic paper, please cite the main reference ``An operator learning perspective on parameter-to-observable maps'' as follows:
 ```
-@article{huang2024fnm,
+@article{huang2025operator,
   title={An operator learning perspective on parameter-to-observable maps},
   author={Huang, Daniel Zhengyu and Nelsen, Nicholas H and Trautner, Margaret},
-  journal={arXiv preprint arXiv:2402.06031},
-  year={2024}
+  journal={Foundations of Data Science},
+  volume={7},
+  number={1},
+  pages={163--225},
+  year={2025},
+  publisher={Foundations of Data Science}
 }
 ```
 
